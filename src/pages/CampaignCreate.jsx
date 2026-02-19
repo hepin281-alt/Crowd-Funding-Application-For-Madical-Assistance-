@@ -24,23 +24,24 @@ export default function CampaignCreate() {
     setError('')
     setLoading(true)
 
-    if (!patientName || !description || !amountNeeded || !hospitalId) {
-      setError('Please fill in all fields')
+    if (!patientName.trim() || !description.trim() || !amountNeeded || !hospitalId) {
+      setError('Please fill in patient name, description, amount, and hospital.')
       setLoading(false)
       return
     }
 
-    if (amountNeeded <= 0) {
-      setError('Amount must be positive')
+    const amt = Number(amountNeeded)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setError('Amount must be a positive number.')
       setLoading(false)
       return
     }
 
     try {
-      const campaign = await api.campaigns.create({
+      await api.campaigns.create({
         patientName,
         description,
-        amountNeeded: Number(amountNeeded),
+        amountNeeded: amt,
         hospitalId,
       })
       navigate('/campaigner')

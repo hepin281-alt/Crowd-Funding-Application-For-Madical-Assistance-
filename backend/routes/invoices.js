@@ -89,6 +89,11 @@ router.post('/', protect, requireRole('campaigner'), async (req, res) => {
       return res.status(400).json({ message: 'campaignId, amount, documentUrl required' })
     }
 
+    const amt = Number(amount)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return res.status(400).json({ message: 'Amount must be a positive number' })
+    }
+
     const campaign = await Campaign.findByPk(campaignId)
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
     if (campaign.user_id !== req.user.id) {
@@ -99,14 +104,14 @@ router.post('/', protect, requireRole('campaigner'), async (req, res) => {
     }
 
     const raised = parseFloat(campaign.raised_amount || 0)
-    if (parseFloat(amount) > raised) {
+    if (amt > raised) {
       return res.status(400).json({ message: 'Invoice amount exceeds raised funds' })
     }
 
     const req_ = await DisbursementRequest.create({
       campaign_id: parseInt(campaignId),
       invoice_image_url: documentUrl.trim(),
-      requested_amount: parseFloat(amount),
+      requested_amount: amt,
       status: 'PENDING',
     })
     res.status(201).json({

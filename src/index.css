@@ -434,6 +434,22 @@ input, select, textarea {
 .invoice-section { margin-top: 2rem; }
 .receipt-item a { font-size: 0.9rem; }
 
+.timeline-text {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.status-badge.status-paid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .progress-bar {
   height: 8px;
   background: var(--color-border);

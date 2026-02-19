@@ -85,7 +85,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/campaigns - Create campaign (campaigner)
 router.post('/', protect, async (req, res) => {
   try {
-    const { patientName, description, amountNeeded, hospitalId, documents } = req.body
+    const { patientName, description, amountNeeded, hospitalId, payout_mode } = req.body
 
     if (req.user.role !== 'campaigner') {
       return res.status(403).json({ message: 'Only campaigners can create campaigns' })
@@ -97,6 +97,16 @@ router.post('/', protect, async (req, res) => {
       })
     }
 
+    const amt = Number(amountNeeded)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return res.status(400).json({ message: 'amountNeeded must be a positive number' })
+    }
+
+    const allowedPayoutModes = ['DIRECT_TO_HOSPITAL', 'PERSONAL_ACCOUNT']
+    if (payout_mode && !allowedPayoutModes.includes(payout_mode)) {
+      return res.status(400).json({ message: 'Invalid payout_mode' })
+    }
+
     const hospital = await Hospital.findByPk(hospitalId)
     if (!hospital || !hospital.is_verified) {
       return res.status(400).json({ message: 'Invalid or unverified hospital' })
@@ -105,11 +115,11 @@ router.post('/', protect, async (req, res) => {
     const campaign = await Campaign.create({
       patient_name: patientName,
       description,
-      target_amount: Number(amountNeeded),
+      target_amount: amt,
       hospital_id: parseInt(hospitalId),
       user_id: req.user.id,
       status: 'pending_hospital_verification',
-      payout_mode: 'DIRECT_TO_HOSPITAL',
+      payout_mode: payout_mode || 'DIRECT_TO_HOSPITAL',
     })
 
     await sendHospitalHandshake(hospital.admin_email, campaign.id.toString(), patientName)

@@ -73,19 +73,33 @@ export default function DonorDashboard() {
             <h2>Utilization Receipts</h2>
             <p>Proof of how your donations were used.</p>
             <div className="donation-list">
-              {receipts.map((r) => (
-                <div key={r._id} className="donation-item card receipt-item">
-                  <div className="donation-info">
-                    <h3>{r.campaign?.patientName}</h3>
-                    <span>Amount: ₹{r.amount}</span>
-                    {r.invoice?.documentUrl && (
-                      <a href={r.invoice.documentUrl} target="_blank" rel="noreferrer">
-                        View proof
-                      </a>
-                    )}
+              {receipts.map((r) => {
+                const utilized = !!r.invoice
+                return (
+                  <div key={r._id} className="donation-item card receipt-item">
+                    <div className="donation-info">
+                      <h3>{r.campaign?.patientName}</h3>
+                      <span>
+                        Amount: ₹{r.amount}{' '}
+                        {utilized ? (
+                          <span className="status-badge status-paid">
+                            Funds used to pay invoice
+                          </span>
+                        ) : (
+                          <span className="status-badge status-pending">
+                            Awaiting utilization
+                          </span>
+                        )}
+                      </span>
+                      {r.invoice?.documentUrl && (
+                        <a href={r.invoice.documentUrl} target="_blank" rel="noreferrer">
+                          View proof
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}

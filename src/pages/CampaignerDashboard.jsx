@@ -27,6 +27,23 @@ export default function CampaignerDashboard() {
     return map[s] || s
   }
 
+  const timelineLabel = (status) => {
+    switch (status) {
+      case 'pending_hospital_verification':
+        return 'Created → Pending Hospital Verification'
+      case 'hospital_verified':
+        return 'Created → Hospital Verified → Awaiting Donations / Invoices'
+      case 'active':
+        return 'Created → Hospital Verified → Active Donations'
+      case 'completed':
+        return 'Created → Hospital Verified → Donations → Paid to Hospital'
+      case 'rejected':
+        return 'Created → Rejected by Hospital'
+      default:
+        return status
+    }
+  }
+
   return (
     <div className="dashboard campaigner-dashboard">
       <div className="container">
@@ -58,6 +75,7 @@ export default function CampaignerDashboard() {
                     </span>
                   </div>
                   <p className="case-desc">{c.description}</p>
+                  <p className="timeline-text">{timelineLabel(c.status)}</p>
                   <p className="case-hospital">{c.hospital?.name}</p>
                   <p className="case-amount">
                     ₹{(c.amountRaised || 0).toLocaleString()} / ₹

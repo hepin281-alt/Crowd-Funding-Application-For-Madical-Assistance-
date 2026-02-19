@@ -18,13 +18,26 @@ export default function InvoiceUpload() {
     setLoading(true)
 
     if (!amount || !documentUrl) {
-      setError('Amount and invoice URL required')
+      setError('Amount and invoice URL are required.')
+      setLoading(false)
+      return
+    }
+
+    const amt = Number(amount)
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setError('Amount must be a positive number.')
+      setLoading(false)
+      return
+    }
+
+    if (!documentUrl.startsWith('http')) {
+      setError('Please enter a valid URL starting with http or https.')
       setLoading(false)
       return
     }
 
     try {
-      await api.invoices.create(campaignId, Number(amount), documentUrl.trim())
+      await api.invoices.create(campaignId, amt, documentUrl.trim())
       navigate('/campaigner')
     } catch (err) {
       setError(err.message || 'Upload failed')
