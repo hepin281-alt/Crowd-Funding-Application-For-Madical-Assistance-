@@ -1,0 +1,5 @@
+DB_NAME=carefund
+DB_USER=hepin      # your mac username
+DB_PASSWORD=       # leave empty if you don't use a password
+DB_HOST=localhost
+DB_PORT=5432
