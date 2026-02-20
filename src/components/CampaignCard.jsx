@@ -19,6 +19,7 @@ export default function CampaignCard({ campaign, canDonate, onDonated }) {
 
   const handleDonate = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
     setError('')
     const amt = Number(amount)
     if (!amt || amt <= 0) {
@@ -44,20 +45,23 @@ export default function CampaignCard({ campaign, canDonate, onDonated }) {
           ✓ Verified by Hospital
         </span>
       )}
-      <h3>{c.patientName}</h3>
-      {c.hospital?.name && (
-        <p className="campaign-hospital">{c.hospital.name}</p>
-      )}
-      <p className="case-desc">{c.description}</p>
-      <div className="case-progress">
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${percent}%` }} />
+
+      <Link to={`/campaigns/${c._id}`} className="campaign-card-link">
+        <h3>{c.patientName}</h3>
+        {c.hospital?.name && (
+          <p className="campaign-hospital">{c.hospital.name}</p>
+        )}
+        <p className="case-desc">{c.description}</p>
+        <div className="case-progress">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${percent}%` }} />
+          </div>
+          <p className="progress-text">
+            ₹{(c.amountRaised || 0).toLocaleString()} raised of ₹
+            {c.amountNeeded.toLocaleString()} ({percent}%)
+          </p>
         </div>
-        <p className="progress-text">
-          ₹{(c.amountRaised || 0).toLocaleString()} raised of ₹
-          {c.amountNeeded.toLocaleString()} ({percent}%)
-        </p>
-      </div>
+      </Link>
 
       {canDonate && user ? (
         <form onSubmit={handleDonate} className="donate-form">

@@ -1,6 +1,7 @@
 import express from 'express'
-import { Campaign, User } from '../models/index.js'
+import { Campaign, User, Hospital } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
+import { sendCampaignVerified, sendCampaignRejected } from '../services/notify.js'
 
 const router = express.Router()
 
@@ -41,7 +42,12 @@ router.get('/pending', async (req, res) => {
 router.post('/verify/:campaignId', async (req, res) => {
   try {
     const { ipdNumber } = req.body
-    const campaign = await Campaign.findByPk(req.params.campaignId)
+    const campaign = await Campaign.findByPk(req.params.campaignId, {
+      include: [
+        { model: User, as: 'User', attributes: ['id', 'name', 'email'] },
+        { model: Hospital, as: 'Hospital', attributes: ['id', 'name'] }
+      ]
+    })
 
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
     if (campaign.hospital_id !== req.user.hospital_id) {
@@ -62,6 +68,15 @@ router.post('/verify/:campaignId', async (req, res) => {
       verified_by_hospital_admin_id: req.user.id,
     })
 
+    // Send notification to campaigner
+    if (campaign.User && campaign.Hospital) {
+      await sendCampaignVerified(
+        campaign.User.email,
+        campaign.patient_name,
+        campaign.Hospital.name
+      )
+    }
+
     const c = await Campaign.findByPk(campaign.id, { raw: true })
     res.json({
       ...c,
@@ -80,7 +95,12 @@ router.post('/verify/:campaignId', async (req, res) => {
 router.post('/reject/:campaignId', async (req, res) => {
   try {
     const { reason } = req.body
-    const campaign = await Campaign.findByPk(req.params.campaignId)
+    const campaign = await Campaign.findByPk(req.params.campaignId, {
+      include: [
+        { model: User, as: 'User', attributes: ['id', 'name', 'email'] },
+        { model: Hospital, as: 'Hospital', attributes: ['id', 'name'] }
+      ]
+    })
 
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
     if (campaign.hospital_id !== req.user.hospital_id) {
@@ -95,6 +115,16 @@ router.post('/reject/:campaignId', async (req, res) => {
       rejection_reason: reason || 'Rejected by hospital',
       verified_by_hospital_admin_id: req.user.id,
     })
+
+    // Send notification to campaigner
+    if (campaign.User && campaign.Hospital) {
+      await sendCampaignRejected(
+        campaign.User.email,
+        campaign.patient_name,
+        campaign.Hospital.name,
+        reason
+      )
+    }
 
     res.json(campaign)
   } catch (err) {

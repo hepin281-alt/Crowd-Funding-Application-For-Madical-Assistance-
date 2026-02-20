@@ -28,7 +28,9 @@ body {
   min-height: 100vh;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: 'Source Serif 4', Georgia, serif;
 }
 
@@ -48,7 +50,9 @@ button {
   border-radius: 8px;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   font-family: inherit;
   border-radius: 8px;
 }
@@ -208,6 +212,117 @@ input, select, textarea {
 .btn-lg {
   padding: 1rem 2rem;
   font-size: 1rem;
+}
+
+/* About Section */
+.about-section,
+.how-it-works,
+.trust-section {
+  padding: 3rem 0;
+  background: var(--color-surface);
+  margin: 2rem 0;
+  border-radius: 12px;
+}
+
+.about-section h2,
+.how-it-works h2,
+.trust-section h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.section-desc {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 2.5rem;
+  opacity: 0.85;
+  font-size: 1.05rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.feature-item {
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+
+.feature-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.feature-item h3 {
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+}
+
+.feature-item p {
+  opacity: 0.85;
+  line-height: 1.6;
+}
+
+/* How It Works */
+.workflow {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.workflow-step {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.step-content h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.step-content p {
+  opacity: 0.85;
+  line-height: 1.6;
+}
+
+/* Trust Section */
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.trust-item h3 {
+  margin-bottom: 0.75rem;
+  font-size: 1.15rem;
+}
+
+.trust-item p {
+  opacity: 0.85;
+  line-height: 1.6;
 }
 
 /* Roles */
@@ -423,16 +538,58 @@ input, select, textarea {
   text-decoration: none;
 }
 
-.auth-success { color: var(--color-primary); font-weight: 600; }
-.form-hint { font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem; }
-.badge-hospital { background: #d1fae5; color: #065f46; }
-.campaign-hospital { font-size: 0.9rem; opacity: 0.85; margin-bottom: 0.5rem; }
-.status-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
-.status-pending_hospital_verification { background: #fef3c7; color: #92400e; }
-.status-hospital_verified, .status-active { background: #d1fae5; color: #065f46; }
-.stat-cards { display: flex; flex-wrap: wrap; gap: 1rem; }
-.invoice-section { margin-top: 2rem; }
-.receipt-item a { font-size: 0.9rem; }
+.auth-success {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.form-hint {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.badge-hospital {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.campaign-hospital {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin-bottom: 0.5rem;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status-pending_hospital_verification {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-hospital_verified,
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.stat-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.invoice-section {
+  margin-top: 2rem;
+}
+
+.receipt-item a {
+  font-size: 0.9rem;
+}
 
 .timeline-text {
   font-size: 0.85rem;
@@ -584,5 +741,234 @@ input, select, textarea {
 
 .donation-amount {
   font-weight: 700;
+  color: var(--color-primary);
+}
+
+
+/* Campaign Detail Page */
+.campaign-detail-page {
+  padding: 2rem 0;
+}
+
+.campaign-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 968px) {
+  .campaign-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.campaign-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.campaign-header h1 {
+  font-size: 2rem;
+  margin: 1rem 0;
+}
+
+.campaign-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hospital-badge {
+  background: var(--color-bg);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ipd-number {
+  background: var(--color-bg);
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin: 1rem 0;
+}
+
+.campaign-progress {
+  margin-top: 1.5rem;
+}
+
+.amount-raised {
+  margin-bottom: 0.75rem;
+}
+
+.amount-large {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.amount-target {
+  font-size: 1.1rem;
+  opacity: 0.8;
+  margin-left: 0.5rem;
+}
+
+.campaign-description h2,
+.hospital-info h2,
+.campaign-timeline h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.description-text {
+  line-height: 1.8;
+  font-size: 1.05rem;
+  white-space: pre-wrap;
+}
+
+.hospital-info p {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.verified-date {
+  margin-top: 1rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.timeline-marker {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.timeline-item.completed .timeline-marker {
+  background: var(--color-primary);
+  color: white;
+}
+
+.timeline-item.pending .timeline-marker {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.timeline-item.rejected .timeline-marker {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.timeline-content h3 {
+  margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+}
+
+.timeline-content p {
+  opacity: 0.8;
+  font-size: 0.95rem;
+}
+
+/* Sidebar */
+.campaign-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 2rem;
+}
+
+.donate-card h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.donate-card .donate-form {
+  margin-top: 1rem;
+}
+
+.donate-card label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.donate-card input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.trust-indicators h3,
+.share-card h3 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.trust-list {
+  list-style: none;
+  padding: 0;
+}
+
+.trust-list li {
+  padding: 0.5rem 0;
+  opacity: 0.9;
+}
+
+.share-card p {
+  opacity: 0.8;
+  margin-bottom: 1rem;
+}
+
+.share-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+
+/* Campaign Card Link */
+.campaign-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.campaign-card-link:hover {
+  text-decoration: none;
+}
+
+.campaign-card-link h3 {
+  transition: color 0.2s;
+}
+
+.campaign-card-link:hover h3 {
   color: var(--color-primary);
 }

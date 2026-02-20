@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import VerifyIdentity from './pages/VerifyIdentity'
 import Campaigns from './pages/Campaigns'
+import CampaignDetail from './pages/CampaignDetail'
 import CampaignCreate from './pages/CampaignCreate'
 import InvoiceUpload from './pages/InvoiceUpload'
 import HospitalVerify from './pages/HospitalVerify'
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="signup" element={<Signup />} />
         <Route path="verify-identity" element={<VerifyIdentity />} />
         <Route path="campaigns" element={<Campaigns />} />
+        <Route path="campaigns/:id" element={<CampaignDetail />} />
         <Route path="hospital/verify/:campaignId" element={<HospitalVerify />} />
         <Route
           path="campaigner"

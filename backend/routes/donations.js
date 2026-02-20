@@ -1,6 +1,7 @@
 import express from 'express'
-import { Donation, Campaign } from '../models/index.js'
+import { Donation, Campaign, User } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
+import { sendDonationReceipt } from '../services/notify.js'
 
 const router = express.Router()
 
@@ -31,6 +32,14 @@ router.post('/', protect, requireRole('donor'), async (req, res) => {
       status: 'active',
     })
 
+    // Send donation receipt email
+    await sendDonationReceipt(
+      req.user.email,
+      campaign.patient_name,
+      parseFloat(amount),
+      campaignId
+    )
+
     const d = await Donation.findByPk(donation.id, {
       include: [{ model: Campaign, as: 'Campaign', attributes: ['patient_name', 'target_amount', 'raised_amount'] }],
       raw: true,
@@ -41,10 +50,10 @@ router.post('/', protect, requireRole('donor'), async (req, res) => {
       _id: d.id,
       campaign: d.Campaign
         ? {
-            patientName: d.Campaign.patient_name,
-            amountNeeded: parseFloat(d.Campaign.target_amount),
-            amountRaised: parseFloat(d.Campaign.raised_amount),
-          }
+          patientName: d.Campaign.patient_name,
+          amountNeeded: parseFloat(d.Campaign.target_amount),
+          amountRaised: parseFloat(d.Campaign.raised_amount),
+        }
         : null,
     })
   } catch (err) {
@@ -68,10 +77,10 @@ router.get('/my', protect, requireRole('donor'), async (req, res) => {
         _id: d.id,
         campaign: d.Campaign
           ? {
-              patientName: d.Campaign.patient_name,
-              amountNeeded: parseFloat(d.Campaign.target_amount),
-              amountRaised: parseFloat(d.Campaign.raised_amount),
-            }
+            patientName: d.Campaign.patient_name,
+            amountNeeded: parseFloat(d.Campaign.target_amount),
+            amountRaised: parseFloat(d.Campaign.raised_amount),
+          }
           : null,
       }))
     )
