@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import CampaignCard from '../components/CampaignCard'
 
 export default function Campaigns() {
-  const { isDonor } = useAuth()
+  const { user } = useAuth()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -18,7 +18,7 @@ export default function Campaigns() {
   }, [])
 
   const refreshCampaigns = () => {
-    api.campaigns.list().then(setCampaigns).catch(() => {})
+    api.campaigns.list().then(setCampaigns).catch(() => { })
   }
 
   return (
@@ -41,7 +41,6 @@ export default function Campaigns() {
               <CampaignCard
                 key={c._id}
                 campaign={c}
-                canDonate={isDonor}
                 onDonated={refreshCampaigns}
               />
             ))}

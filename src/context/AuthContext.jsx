@@ -46,12 +46,9 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('carefund_user')
   }
 
-  const isEmployee = user?.role === 'employee'
-  const isDonor = user?.role === 'donor'
-  const isCampaigner = user?.role === 'campaigner'
-  const isHospitalAdmin = user?.role === 'hospital_admin'
-  const needsVerification =
-    (isEmployee || isHospitalAdmin) && !user?.isVerified
+  const isAdmin = user?.role === 'admin' || user?.role === 'hospital_admin'
+  const isUser = user?.role === 'user'
+  const needsVerification = !user?.is_verified
 
   return (
     <AuthContext.Provider
@@ -61,10 +58,8 @@ export function AuthProvider({ children }) {
         logout,
         updateUser,
         loading,
-        isEmployee,
-        isDonor,
-        isCampaigner,
-        isHospitalAdmin,
+        isAdmin,
+        isUser,
         needsVerification,
       }}
     >

@@ -30,10 +30,10 @@ async function request(path, options = {}) {
 
 export const api = {
   auth: {
-    login: (email, password, role) =>
+    login: (email, password) =>
       request('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password }),
       }),
     signup: (data) =>
       request('/auth/signup', {

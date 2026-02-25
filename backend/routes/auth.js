@@ -15,23 +15,25 @@ function generateVerificationCode() {
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body
+    const { name, email, password, role, phone, hospitalName, licenseNumber } = req.body
 
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: 'Name, email, password, and role are required' })
-    }
-
-    const validRoles = ['employee', 'donor', 'campaigner', 'hospital_admin']
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ message: `Role must be one of: ${validRoles.join(', ')}` })
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' })
     }
 
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' })
     }
 
-    if (role === 'hospital_admin' && !req.body.hospitalId) {
-      return res.status(400).json({ message: 'Hospital selection is required for Hospital Admin' })
+    // Validate role-specific fields
+    if (role === 'user') {
+      if (!phone) {
+        return res.status(400).json({ message: 'Phone number is required for users' })
+      }
+    } else if (role === 'hospital_admin') {
+      if (!hospitalName || !licenseNumber) {
+        return res.status(400).json({ message: 'Hospital name and license number are required for hospital admins' })
+      }
     }
 
     const existing = await User.findOne({ where: { email } })
@@ -39,29 +41,20 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' })
     }
 
-    const isEmployee = role === 'employee'
-    const isHospitalAdmin = role === 'hospital_admin'
-    const needsVerification = isEmployee || isHospitalAdmin
-    const verificationCode = needsVerification ? generateVerificationCode() : undefined
-    const verificationCodeExpiresAt = needsVerification
-      ? new Date(Date.now() + 15 * 60 * 1000)
-      : undefined
-    const isVerified = !needsVerification
+    let userData = { name, email, password, role: role || 'user', is_verified: false }
 
-    const userData = { name, email, password, role, is_verified: isVerified }
-    if (needsVerification) {
-      userData.verification_code = verificationCode
-      userData.verification_code_expires_at = verificationCodeExpiresAt
+    if (role === 'user' && phone) {
+      userData.phone = phone
     }
-    if (role === 'hospital_admin' && req.body.hospitalId) {
-      userData.hospital_id = parseInt(req.body.hospitalId)
+
+    if (role === 'hospital_admin') {
+      userData.hospital_name = hospitalName
+      userData.license_number = licenseNumber
+      userData.hospital_phone = phone // Store hospital phone in hospital_phone field
+      userData.is_verified = false // Hospital admins start unverified
     }
 
     const user = await User.create(userData)
-
-    if (needsVerification) {
-      console.log(`[CareFund] Verification code for ${email}: ${verificationCode}`)
-    }
 
     const token = generateToken(user.id)
     const payload = {
@@ -71,14 +64,12 @@ router.post('/signup', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isVerified: user.is_verified,
+        is_verified: user.is_verified,
+        ...(user.role === 'hospital_admin' && {
+          hospital_name: user.hospital_name,
+          license_number: user.license_number,
+        }),
       },
-    }
-    if (needsVerification) {
-      payload.requiresVerification = true
-      if (process.env.NODE_ENV !== 'production') {
-        payload.verificationCode = verificationCode
-      }
     }
     res.status(201).json(payload)
   } catch (err) {
@@ -89,7 +80,7 @@ router.post('/signup', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, role } = req.body
+    const { email, password } = req.body
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' })
@@ -105,10 +96,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' })
     }
 
-    if (role && user.role !== role) {
-      return res.status(403).json({ message: `You are registered as ${user.role}` })
-    }
-
     const token = generateToken(user.id)
     const payload = {
       token,
@@ -117,16 +104,12 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isVerified: user.is_verified,
+        is_verified: user.is_verified,
+        ...(user.role === 'hospital_admin' && {
+          hospital_name: user.hospital_name,
+          license_number: user.license_number,
+        }),
       },
-    }
-    const needsVerification =
-      (user.role === 'employee' || user.role === 'hospital_admin') && !user.is_verified
-    if (needsVerification) {
-      payload.requiresVerification = true
-      if (process.env.NODE_ENV !== 'production') {
-        payload.verificationCode = user.verification_code
-      }
     }
     res.json(payload)
   } catch (err) {
@@ -140,8 +123,8 @@ router.post('/verify-identity', protect, async (req, res) => {
     const { code } = req.body
     const user = req.user
 
-    if (user.role !== 'employee' && user.role !== 'hospital_admin') {
-      return res.status(400).json({ message: 'Only employees and hospital admins need verification' })
+    if (!['admin', 'hospital_admin'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only admins need verification' })
     }
 
     if (user.is_verified) {
@@ -151,7 +134,7 @@ router.post('/verify-identity', protect, async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          isVerified: true,
+          is_verified: true,
         },
       })
     }
@@ -182,7 +165,7 @@ router.post('/verify-identity', protect, async (req, res) => {
         name: u.name,
         email: u.email,
         role: u.role,
-        isVerified: true,
+        is_verified: true,
       },
     })
   } catch (err) {
@@ -195,8 +178,8 @@ router.post('/resend-verification', protect, async (req, res) => {
   try {
     const user = req.user
 
-    if (user.role !== 'employee' && user.role !== 'hospital_admin') {
-      return res.status(400).json({ message: 'Only employees and hospital admins need verification' })
+    if (!['admin', 'hospital_admin'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only admins need verification' })
     }
 
     const u = await User.findByPk(user.id)
@@ -224,15 +207,21 @@ router.post('/resend-verification', protect, async (req, res) => {
 
 // GET /api/auth/me
 router.get('/me', protect, (req, res) => {
-  res.json({
-    user: {
-      id: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      isVerified: req.user.is_verified,
-    },
-  })
+  const userObj = {
+    id: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+    role: req.user.role,
+    is_verified: req.user.is_verified,
+  }
+
+  // Include hospital-specific fields for hospital_admin role
+  if (req.user.role === 'hospital_admin') {
+    userObj.hospital_name = req.user.hospital_name
+    userObj.license_number = req.user.license_number
+  }
+
+  res.json({ user: userObj })
 })
 
 export default router

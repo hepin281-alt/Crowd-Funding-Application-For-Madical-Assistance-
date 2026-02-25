@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
-export default function CampaignCard({ campaign, canDonate, onDonated }) {
+export default function CampaignCard({ campaign, onDonated }) {
   const { user } = useAuth()
   const [amount, setAmount] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -63,7 +63,7 @@ export default function CampaignCard({ campaign, canDonate, onDonated }) {
         </div>
       </Link>
 
-      {canDonate && user ? (
+      {user ? (
         <form onSubmit={handleDonate} className="donate-form">
           <input
             type="number"
@@ -82,7 +82,7 @@ export default function CampaignCard({ campaign, canDonate, onDonated }) {
           {error && <p className="auth-error">{error}</p>}
         </form>
       ) : (
-        <Link to="/signup?role=donor">
+        <Link to="/signup">
           <button className="btn btn-primary btn-full">
             Sign up to Donate
           </button>

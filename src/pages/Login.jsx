@@ -4,13 +4,22 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 
 export default function Login() {
+  const { user, login } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('donor')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
-  const navigate = useNavigate()
+
+  // Redirect to dashboard if already logged in
+  if (user) {
+    if (user.role === 'admin' || user.role === 'hospital_admin') {
+      navigate('/admin-dashboard', { replace: true })
+    } else {
+      navigate('/dashboard', { replace: true })
+    }
+    return null
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -19,26 +28,19 @@ export default function Login() {
 
     if (!email || !password) {
       setError('Please fill in all fields.')
+      setLoading(false)
       return
     }
 
     try {
-      const { token, user: userData, requiresVerification } = await api.auth.login(
-        email,
-        password,
-        role
-      )
+      const { token, user: userData } = await api.auth.login(email, password)
       login(userData, token)
-      if (requiresVerification) {
-        navigate('/verify-identity')
+
+      // Redirect based on role
+      if (userData.role === 'admin' || userData.role === 'hospital_admin') {
+        navigate('/admin-dashboard')
       } else {
-        const routes = {
-          employee: '/employee',
-          donor: '/donor',
-          campaigner: '/campaigner',
-          hospital_admin: '/hospital-admin',
-        }
-        navigate(routes[role] || '/')
+        navigate('/dashboard')
       }
     } catch (err) {
       setError(err.message || 'Login failed')
@@ -54,14 +56,6 @@ export default function Login() {
         <p className="auth-subtitle">Sign in to your CareFund account</p>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          <label>I am a</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="donor">Donor</option>
-            <option value="campaigner">Campaigner</option>
-            <option value="hospital_admin">Hospital Admin</option>
-            <option value="employee">Platform Admin</option>
-          </select>
-
           <label>Email</label>
           <input
             type="email"

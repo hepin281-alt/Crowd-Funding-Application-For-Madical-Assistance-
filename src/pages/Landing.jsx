@@ -1,6 +1,20 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  // Redirect to dashboard if already logged in
+  if (user) {
+    if (user.role === 'admin' || user.role === 'hospital_admin') {
+      navigate('/admin-dashboard', { replace: true })
+    } else {
+      navigate('/dashboard', { replace: true })
+    }
+    return null
+  }
+
   return (
     <div className="landing">
       <section className="hero">

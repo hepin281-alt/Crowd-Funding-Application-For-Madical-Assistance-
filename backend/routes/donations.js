@@ -6,7 +6,7 @@ import { sendDonationReceipt } from '../services/notify.js'
 const router = express.Router()
 
 // POST /api/donations
-router.post('/', protect, requireRole('donor'), async (req, res) => {
+router.post('/', protect, requireRole('user'), async (req, res) => {
   try {
     const { campaignId, amount } = req.body
 
@@ -62,7 +62,7 @@ router.post('/', protect, requireRole('donor'), async (req, res) => {
 })
 
 // GET /api/donations/my
-router.get('/my', protect, requireRole('donor'), async (req, res) => {
+router.get('/my', protect, requireRole('user'), async (req, res) => {
   try {
     const donations = await Donation.findAll({
       where: { donor_id: req.user.id },

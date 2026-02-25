@@ -8,24 +8,36 @@ import VerifyIdentity from './pages/VerifyIdentity'
 import Campaigns from './pages/Campaigns'
 import CampaignDetail from './pages/CampaignDetail'
 import CampaignCreate from './pages/CampaignCreate'
-import InvoiceUpload from './pages/InvoiceUpload'
-import HospitalVerify from './pages/HospitalVerify'
-import HospitalAdminDashboard from './pages/HospitalAdminDashboard'
-import EmployeeDashboard from './pages/EmployeeDashboard'
-import DonorDashboard from './pages/DonorDashboard'
-import CampaignerDashboard from './pages/CampaignerDashboard'
+import Dashboard from './pages/Dashboard'
+import AdminPendingVerification from './pages/AdminPendingVerification'
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading, needsVerification } = useAuth()
 
   if (loading) return <div className="loading-screen">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
-  if (allowedRole && user.role !== allowedRole) {
-    const routes = { employee: '/employee', donor: '/donor', campaigner: '/campaigner', hospital_admin: '/hospital-admin' }
+
+  // Check if user has the allowed role
+  let hasAllowedRole = false
+  if (allowedRole === 'admin') {
+    // Admins can be either 'admin' or 'hospital_admin'
+    hasAllowedRole = user.role === 'admin' || user.role === 'hospital_admin'
+  } else if (allowedRole === 'user') {
+    hasAllowedRole = user.role === 'user'
+  }
+
+  if (allowedRole && !hasAllowedRole) {
+    const routes = { user: '/dashboard', admin: '/admin-dashboard', hospital_admin: '/admin-dashboard' }
     return <Navigate to={routes[user.role] || '/'} replace />
   }
-  if ((allowedRole === 'employee' || allowedRole === 'hospital_admin') && needsVerification) {
-    return <Navigate to="/verify-identity" replace />
+
+  if (needsVerification && (allowedRole === 'admin' || user.role === 'hospital_admin')) {
+    // Hospital admins go to pending verification page, regular admins to verify-identity
+    if (user.role === 'hospital_admin') {
+      return <Navigate to="/admin-pending-verification" replace />
+    } else {
+      return <Navigate to="/verify-identity" replace />
+    }
   }
   return children
 }
@@ -38,54 +50,30 @@ export default function App() {
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
         <Route path="verify-identity" element={<VerifyIdentity />} />
+        <Route path="admin-pending-verification" element={<AdminPendingVerification />} />
         <Route path="campaigns" element={<Campaigns />} />
         <Route path="campaigns/:id" element={<CampaignDetail />} />
-        <Route path="hospital/verify/:campaignId" element={<HospitalVerify />} />
         <Route
-          path="campaigner"
+          path="dashboard"
           element={
-            <ProtectedRoute allowedRole="campaigner">
-              <CampaignerDashboard />
+            <ProtectedRoute allowedRole="user">
+              <Dashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="campaigner/create"
+          path="create"
           element={
-            <ProtectedRoute allowedRole="campaigner">
+            <ProtectedRoute allowedRole="user">
               <CampaignCreate />
             </ProtectedRoute>
           }
         />
         <Route
-          path="campaigner/campaign/:campaignId/invoice"
+          path="admin-dashboard"
           element={
-            <ProtectedRoute allowedRole="campaigner">
-              <InvoiceUpload />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="hospital-admin"
-          element={
-            <ProtectedRoute allowedRole="hospital_admin">
-              <HospitalAdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="employee"
-          element={
-            <ProtectedRoute allowedRole="employee">
-              <EmployeeDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="donor"
-          element={
-            <ProtectedRoute allowedRole="donor">
-              <DonorDashboard />
+            <ProtectedRoute allowedRole="admin">
+              <Dashboard />
             </ProtectedRoute>
           }
         />
