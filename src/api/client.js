@@ -11,6 +11,27 @@ function getHeaders() {
   return headers
 }
 
+async function uploadRequest(path, file) {
+  const token = getToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  let res
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+  } catch (err) {
+    throw new Error(
+      'Cannot connect to server. Make sure the backend is running (npm run dev in backend folder).'
+    )
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Request failed')
+  return data
+}
+
 async function request(path, options = {}) {
   let res
   try {
@@ -62,6 +83,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    updateDocuments: (id, data) =>
+      request(`/campaigns/${id}/documents`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
   },
   donations: {
     create: (campaignId, amount) =>
@@ -88,6 +114,9 @@ export const api = {
     settle: (id) =>
       request(`/invoices/${id}/settle`, { method: 'POST' }),
   },
+  uploads: {
+    upload: (file) => uploadRequest('/uploads', file),
+  },
   employee: {
     hospitals: () => request('/employee/hospitals'),
   },
@@ -102,6 +131,11 @@ export const api = {
       request(`/hospital-admin/reject/${campaignId}`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
+      }),
+    requestInfo: (campaignId, note) =>
+      request(`/hospital-admin/request-info/${campaignId}`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
       }),
   },
 }

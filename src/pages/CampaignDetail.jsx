@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -13,6 +13,13 @@ export default function CampaignDetail() {
     const [donating, setDonating] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState(false)
+    const [docError, setDocError] = useState('')
+    const [docSuccess, setDocSuccess] = useState('')
+    const [medicalBillUrl, setMedicalBillUrl] = useState('')
+    const [identityProofUrl, setIdentityProofUrl] = useState('')
+    const [uploading, setUploading] = useState({ bill: false, identity: false })
+    const billInputRef = useRef(null)
+    const identityInputRef = useRef(null)
 
     useEffect(() => {
         loadCampaign()
@@ -21,12 +28,50 @@ export default function CampaignDetail() {
     const loadCampaign = () => {
         api.campaigns
             .get(id)
-            .then(setCampaign)
+            .then((data) => {
+                setCampaign(data)
+                setMedicalBillUrl(data.medicalBillUrl || '')
+                setIdentityProofUrl(data.patientIdentityProofUrl || '')
+            })
             .catch(() => {
                 setError('Campaign not found')
                 setCampaign(null)
             })
             .finally(() => setLoading(false))
+    }
+
+    const handleDocUpload = async (file, setUrl, key) => {
+        if (!file) return
+        setUploading((prev) => ({ ...prev, [key]: true }))
+        setDocError('')
+        try {
+            const result = await api.uploads.upload(file)
+            setUrl(result.url)
+        } catch (err) {
+            setDocError(err.message || 'Upload failed')
+        } finally {
+            setUploading((prev) => ({ ...prev, [key]: false }))
+        }
+    }
+
+    const handleResubmit = async (e) => {
+        e.preventDefault()
+        setDocError('')
+        setDocSuccess('')
+        if (!medicalBillUrl.trim() || !identityProofUrl.trim()) {
+            setDocError('Both documents are required to resubmit')
+            return
+        }
+        try {
+            await api.campaigns.updateDocuments(campaign._id, {
+                medicalBillUrl: medicalBillUrl.trim(),
+                patientIdentityProofUrl: identityProofUrl.trim(),
+            })
+            setDocSuccess('Documents resubmitted for verification')
+            loadCampaign()
+        } catch (err) {
+            setDocError(err.message || 'Resubmission failed')
+        }
     }
 
     const handleDonate = async (e) => {
@@ -90,11 +135,14 @@ export default function CampaignDetail() {
 
     const statusLabel = {
         pending_hospital_verification: 'Awaiting Hospital Verification',
+        needs_info: 'Needs Updated Documents',
         hospital_verified: 'Verified by Hospital',
         active: 'Active',
         completed: 'Completed',
         rejected: 'Rejected'
     }[campaign.status] || campaign.status
+
+    const isOwner = user?.id && campaign.user_id && Number(user.id) === Number(campaign.user_id)
 
     return (
         <div className="campaign-detail-page">
@@ -163,10 +211,20 @@ export default function CampaignDetail() {
                                     </div>
                                 </div>
 
+                                {campaign.status === 'needs_info' && (
+                                    <div className="timeline-item pending">
+                                        <div className="timeline-marker">○</div>
+                                        <div className="timeline-content">
+                                            <h3>Hospital Requested Updates</h3>
+                                            <p>{isOwner ? (campaign.hospitalAdminNote || 'Update documents and resubmit') : 'Updates requested by hospital'}</p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {campaign.status !== 'rejected' && (
-                                    <div className={`timeline-item ${campaign.status !== 'pending_hospital_verification' ? 'completed' : 'pending'}`}>
+                                    <div className={`timeline-item ${['hospital_verified', 'active', 'completed'].includes(campaign.status) ? 'completed' : 'pending'}`}>
                                         <div className="timeline-marker">
-                                            {campaign.status !== 'pending_hospital_verification' ? '✓' : '○'}
+                                            {['hospital_verified', 'active', 'completed'].includes(campaign.status) ? '✓' : '○'}
                                         </div>
                                         <div className="timeline-content">
                                             <h3>Hospital Verification</h3>
@@ -217,6 +275,76 @@ export default function CampaignDetail() {
                     </div>
 
                     <div className="campaign-sidebar">
+                        {campaign.status === 'needs_info' && isOwner && (
+                            <div className="card review-docs">
+                                <h2>Update Verification Documents</h2>
+                                {campaign.hospitalAdminNote && (
+                                    <p className="doc-note">
+                                        <strong>Admin note:</strong> {campaign.hospitalAdminNote}
+                                    </p>
+                                )}
+                                <form className="doc-form" onSubmit={handleResubmit}>
+                                    <label>Medical Estimate / Bill</label>
+                                    <div className="upload-row">
+                                        <input
+                                            type="url"
+                                            value={medicalBillUrl}
+                                            onChange={(e) => setMedicalBillUrl(e.target.value)}
+                                            placeholder="https://example.com/medical-bill.pdf"
+                                            className="form-input"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => billInputRef.current?.click()}
+                                            disabled={uploading.bill}
+                                        >
+                                            {uploading.bill ? 'Uploading...' : 'Upload'}
+                                        </button>
+                                        <input
+                                            ref={billInputRef}
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            className="file-input-hidden"
+                                            onChange={(e) => handleDocUpload(e.target.files?.[0], setMedicalBillUrl, 'bill')}
+                                        />
+                                    </div>
+
+                                    <label>Patient Identity Proof</label>
+                                    <div className="upload-row">
+                                        <input
+                                            type="url"
+                                            value={identityProofUrl}
+                                            onChange={(e) => setIdentityProofUrl(e.target.value)}
+                                            placeholder="https://example.com/id-proof.pdf"
+                                            className="form-input"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => identityInputRef.current?.click()}
+                                            disabled={uploading.identity}
+                                        >
+                                            {uploading.identity ? 'Uploading...' : 'Upload'}
+                                        </button>
+                                        <input
+                                            ref={identityInputRef}
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            className="file-input-hidden"
+                                            onChange={(e) => handleDocUpload(e.target.files?.[0], setIdentityProofUrl, 'identity')}
+                                        />
+                                    </div>
+
+                                    {docError && <p className="auth-error">{docError}</p>}
+                                    {docSuccess && <p className="auth-success">{docSuccess}</p>}
+
+                                    <button type="submit" className="btn btn-primary btn-full">
+                                        Resubmit for Verification
+                                    </button>
+                                </form>
+                            </div>
+                        )}
                         {(campaign.status === 'hospital_verified' || campaign.status === 'active') && (
                             <div className="card donate-card">
                                 <h2>Support This Campaign</h2>

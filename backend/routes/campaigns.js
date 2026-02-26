@@ -1,6 +1,6 @@
 import express from 'express'
 import { Op } from 'sequelize'
-import { Campaign, Hospital } from '../models/index.js'
+import { Campaign, Hospital, User } from '../models/index.js'
 import { protect } from '../middleware/auth.js'
 import { sendHospitalHandshake } from '../services/notify.js'
 
@@ -27,6 +27,7 @@ router.get('/my', protect, async (req, res) => {
         patientName: c.patient_name,
         amountNeeded: parseFloat(c.target_amount),
         amountRaised: parseFloat(c.raised_amount || 0),
+        hospitalAdminNote: c.hospital_admin_note,
       }))
     )
   } catch (err) {
@@ -63,7 +64,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const c = await Campaign.findByPk(req.params.id, {
-      include: [{ model: Hospital, as: 'Hospital', attributes: ['id', 'name', 'address', 'city'] }],
+      include: [
+        { model: Hospital, as: 'Hospital', attributes: ['id', 'name', 'address', 'city'] },
+        { model: User, as: 'User', attributes: ['id', 'name', 'email'] },
+      ],
       raw: true,
       nest: true,
     })
@@ -72,10 +76,16 @@ router.get('/:id', async (req, res) => {
       ...c,
       _id: c.id,
       hospital: c.Hospital,
+      campaigner: c.User ? { _id: c.User.id, name: c.User.name, email: c.User.email } : null,
       patientName: c.patient_name,
       amountNeeded: parseFloat(c.target_amount),
       amountRaised: parseFloat(c.raised_amount || 0),
       ipdNumber: c.patient_ipd_number,
+      medicalBillUrl: c.medical_bill_url,
+      patientIdentityProofUrl: c.patient_identity_proof_url,
+      treatingDoctorName: c.treating_doctor_name,
+      medicalCondition: c.medical_condition,
+      hospitalAdminNote: c.hospital_admin_note,
     })
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -116,6 +126,9 @@ router.post('/', protect, async (req, res) => {
         return res.status(400).json({
           message: 'campaignTitle, patientName, description, amountNeeded, and hospital (verified or custom) required to submit',
         })
+      }
+      if (!medicalBillUrl || !patientIdentityProofUrl) {
+        return res.status(400).json({ message: 'Medical bill and identity proof are required to submit' })
       }
     }
 
@@ -195,11 +208,70 @@ router.post('/', protect, async (req, res) => {
       coverImageUrl: populated.cover_image_url,
       medicalBillUrl: populated.medical_bill_url,
       patientIdentityProofUrl: populated.patient_identity_proof_url,
+      hospitalAdminNote: populated.hospital_admin_note,
       bankAccountHolderName: populated.bank_account_holder_name,
       bankAccountNumber: populated.bank_account_number,
       bankIfscCode: populated.bank_ifsc_code,
       payoutMode: populated.payout_mode,
       customHospitalName: populated.custom_hospital_name,
+    })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+})
+
+// PATCH /api/campaigns/:id/documents - Update verification documents after needs-info
+router.patch('/:id/documents', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'user') {
+      return res.status(403).json({ message: 'Only users can update documents' })
+    }
+
+    const { medicalBillUrl, patientIdentityProofUrl } = req.body
+    if (!medicalBillUrl || !patientIdentityProofUrl) {
+      return res.status(400).json({ message: 'Medical bill and identity proof are required' })
+    }
+
+    const campaign = await Campaign.findByPk(req.params.id)
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
+    if (campaign.user_id !== req.user.id) {
+      return res.status(403).json({ message: 'Not your campaign' })
+    }
+    if (campaign.status !== 'needs_info') {
+      return res.status(400).json({ message: 'Campaign is not awaiting updated documents' })
+    }
+
+    await campaign.update({
+      medical_bill_url: medicalBillUrl,
+      patient_identity_proof_url: patientIdentityProofUrl,
+      status: 'pending_hospital_verification',
+      hospital_admin_note: null,
+    })
+
+    if (campaign.hospital_id) {
+      const hospital = await Hospital.findByPk(campaign.hospital_id)
+      if (hospital && hospital.is_verified) {
+        await sendHospitalHandshake(hospital.admin_email, campaign.id.toString(), campaign.patient_name)
+        await campaign.update({ hospital_handshake_sent_at: new Date() })
+      }
+    }
+
+    const updated = await Campaign.findByPk(campaign.id, {
+      include: [{ model: Hospital, as: 'Hospital', attributes: ['id', 'name', 'city'] }],
+      raw: true,
+      nest: true,
+    })
+
+    res.json({
+      ...updated,
+      _id: updated.id,
+      hospital: updated.Hospital,
+      patientName: updated.patient_name,
+      amountNeeded: parseFloat(updated.target_amount),
+      amountRaised: parseFloat(updated.raised_amount || 0),
+      medicalBillUrl: updated.medical_bill_url,
+      patientIdentityProofUrl: updated.patient_identity_proof_url,
+      hospitalAdminNote: updated.hospital_admin_note,
     })
   } catch (err) {
     res.status(500).json({ message: err.message })

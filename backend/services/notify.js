@@ -106,6 +106,35 @@ Please contact the hospital directly if you believe this is an error.
     `
   }),
 
+  campaignNeedsInfo: (campaignerEmail, patientName, hospitalName, note) => ({
+    to: campaignerEmail,
+    subject: `[CareFund] Action Needed: Update Documents - ${patientName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #f59e0b;">Additional Information Required</h2>
+        <p>${hospitalName} has requested updates for your campaign for <strong>${patientName}</strong>.</p>
+
+        ${note ? `<div style="background: #fffbeb; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Admin Note:</strong> ${note}</p>
+        </div>` : ''}
+
+        <p>Please update the required documents and resubmit for verification.</p>
+
+        <a href="${FRONTEND_URL}/campaigns" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin: 1rem 0;">
+          View Campaign
+        </a>
+      </div>
+    `,
+    text: `Additional Information Required
+
+${hospitalName} has requested updates for your campaign for ${patientName}.
+
+${note ? `Admin Note: ${note}` : ''}
+
+Please update the required documents and resubmit for verification.
+    `
+  }),
+
   donationReceipt: (donorEmail, campaignName, amount, campaignId) => ({
     to: donorEmail,
     subject: `[CareFund] Donation Receipt - ₹${amount}`,
@@ -198,6 +227,11 @@ export async function sendCampaignVerified(campaignerEmail, patientName, hospita
 
 export async function sendCampaignRejected(campaignerEmail, patientName, hospitalName, reason) {
   const emailData = templates.campaignRejected(campaignerEmail, patientName, hospitalName, reason)
+  return sendEmail(emailData)
+}
+
+export async function sendCampaignNeedsInfo(campaignerEmail, patientName, hospitalName, note) {
+  const emailData = templates.campaignNeedsInfo(campaignerEmail, patientName, hospitalName, note)
   return sendEmail(emailData)
 }
 

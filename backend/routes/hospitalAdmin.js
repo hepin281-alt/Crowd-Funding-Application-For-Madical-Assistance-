@@ -1,7 +1,7 @@
 import express from 'express'
 import { Campaign, User, Hospital } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
-import { sendCampaignVerified, sendCampaignRejected } from '../services/notify.js'
+import { sendCampaignVerified, sendCampaignRejected, sendCampaignNeedsInfo } from '../services/notify.js'
 
 const router = express.Router()
 
@@ -27,6 +27,11 @@ router.get('/pending', async (req, res) => {
         ...c,
         _id: c.id,
         patientName: c.patient_name,
+        medicalCondition: c.medical_condition,
+        treatingDoctorName: c.treating_doctor_name,
+        medicalBillUrl: c.medical_bill_url,
+        patientIdentityProofUrl: c.patient_identity_proof_url,
+        createdAt: c.created_at,
         amountNeeded: parseFloat(c.target_amount),
         campaigner: c.User
           ? { _id: c.User.id, name: c.User.name, email: c.User.email }
@@ -66,6 +71,8 @@ router.post('/verify/:campaignId', async (req, res) => {
       status: 'hospital_verified',
       verified_by_hospital_at: new Date(),
       verified_by_hospital_admin_id: req.user.id,
+      payout_mode: 'DIRECT_TO_HOSPITAL',
+      hospital_admin_note: null,
     })
 
     // Send notification to campaigner
@@ -86,6 +93,50 @@ router.post('/verify/:campaignId', async (req, res) => {
       amountRaised: parseFloat(c.raised_amount || 0),
       ipdNumber: c.patient_ipd_number,
     })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+})
+
+// POST /api/hospital-admin/request-info/:campaignId
+router.post('/request-info/:campaignId', async (req, res) => {
+  try {
+    const { note } = req.body
+    const campaign = await Campaign.findByPk(req.params.campaignId, {
+      include: [
+        { model: User, as: 'User', attributes: ['id', 'name', 'email'] },
+        { model: Hospital, as: 'Hospital', attributes: ['id', 'name'] }
+      ]
+    })
+
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
+    if (campaign.hospital_id !== req.user.hospital_id) {
+      return res.status(403).json({ message: 'Not your hospital' })
+    }
+    if (campaign.status !== 'pending_hospital_verification') {
+      return res.status(400).json({ message: 'Campaign already processed' })
+    }
+
+    if (!note || !note.trim()) {
+      return res.status(400).json({ message: 'A note is required' })
+    }
+
+    await campaign.update({
+      status: 'needs_info',
+      hospital_admin_note: note.trim(),
+      verified_by_hospital_admin_id: req.user.id,
+    })
+
+    if (campaign.User && campaign.Hospital) {
+      await sendCampaignNeedsInfo(
+        campaign.User.email,
+        campaign.patient_name,
+        campaign.Hospital.name,
+        note.trim()
+      )
+    }
+
+    res.json(campaign)
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

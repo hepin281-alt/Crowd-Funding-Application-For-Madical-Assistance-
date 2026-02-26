@@ -36,6 +36,7 @@ const Campaign = db.define(
       type: DataTypes.ENUM(
         'draft',
         'pending_hospital_verification',
+        'needs_info',
         'hospital_verified',
         'rejected',
         'active',
@@ -47,6 +48,7 @@ const Campaign = db.define(
     verified_by_hospital_at: { type: DataTypes.DATE, allowNull: true },
     verified_by_hospital_admin_id: { type: DataTypes.INTEGER, allowNull: true },
     rejection_reason: { type: DataTypes.TEXT, allowNull: true },
+    hospital_admin_note: { type: DataTypes.TEXT, allowNull: true },
   },
   {
     tableName: 'campaigns',

@@ -7,6 +7,7 @@ export default function HospitalAdminDashboard() {
   const { user } = useAuth()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
+  const [doctorFilter, setDoctorFilter] = useState('')
 
   useEffect(() => {
     api.hospitalAdmin
@@ -17,7 +18,7 @@ export default function HospitalAdminDashboard() {
   }, [])
 
   const refresh = () => {
-    api.hospitalAdmin.pending().then(setCampaigns).catch(() => {})
+    api.hospitalAdmin.pending().then(setCampaigns).catch(() => { })
   }
 
   return (
@@ -35,34 +36,60 @@ export default function HospitalAdminDashboard() {
 
         <section className="pending-cases">
           <h2>Campaigns Awaiting Verification</h2>
+          <div className="pending-filters">
+            <div className="filter-item">
+              <label>Filter by Doctor</label>
+              <input
+                type="text"
+                value={doctorFilter}
+                onChange={(e) => setDoctorFilter(e.target.value)}
+                placeholder="Search by doctor name"
+                className="form-input"
+              />
+            </div>
+            <button className="btn btn-secondary" onClick={refresh}>Refresh Queue</button>
+          </div>
           {loading ? (
             <p className="loading-text">Loading...</p>
           ) : campaigns.length === 0 ? (
             <p className="empty-state">No pending campaigns. Great job!</p>
           ) : (
             <div className="case-list">
-              {campaigns.map((c) => (
-                <div key={c._id} className="case-item card">
-                  <div className="case-item-header">
-                    <h3>{c.patientName}</h3>
-                    <span className="case-date">
-                      {c.createdAt
-                        ? new Date(c.createdAt).toLocaleDateString()
-                        : '—'}
-                    </span>
+              {campaigns
+                .filter((c) => {
+                  if (!doctorFilter.trim()) return true
+                  return (c.treatingDoctorName || '')
+                    .toLowerCase()
+                    .includes(doctorFilter.trim().toLowerCase())
+                })
+                .map((c) => (
+                  <div key={c._id} className="case-item card">
+                    <div className="case-item-header">
+                      <h3>{c.patientName}</h3>
+                      <span className="case-date">
+                        {c.createdAt
+                          ? new Date(c.createdAt).toLocaleDateString()
+                          : '—'}
+                      </span>
+                    </div>
+                    <p className="case-meta">
+                      <strong>Doctor:</strong> {c.treatingDoctorName || '—'}
+                    </p>
+                    <p className="case-meta">
+                      <strong>Diagnosis:</strong> {c.medicalCondition || '—'}
+                    </p>
+                    <p className="case-desc">{c.description}</p>
+                    <p className="case-amount">
+                      Amount requested: ₹{c.amountNeeded?.toLocaleString()}
+                    </p>
+                    <p className="case-campaigner">
+                      Campaigner: {c.campaigner?.name} ({c.campaigner?.email})
+                    </p>
+                    <Link to={`/hospital/verify/${c._id}`}>
+                      <button className="btn btn-primary">Review & Verify</button>
+                    </Link>
                   </div>
-                  <p className="case-desc">{c.description}</p>
-                  <p className="case-amount">
-                    Amount requested: ₹{c.amountNeeded?.toLocaleString()}
-                  </p>
-                  <p className="case-campaigner">
-                    Campaigner: {c.campaigner?.name} ({c.campaigner?.email})
-                  </p>
-                  <Link to={`/hospital/verify/${c._id}`}>
-                    <button className="btn btn-primary">Verify with IPD No</button>
-                  </Link>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </section>

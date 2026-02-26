@@ -19,7 +19,7 @@ export default function DonorDashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const totalDonated = donations.reduce((sum, d) => sum + d.amount, 0)
+  const totalDonated = donations.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
 
   return (
     <div className="dashboard donor-dashboard">

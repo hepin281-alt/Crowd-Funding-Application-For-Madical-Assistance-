@@ -31,8 +31,8 @@ export default function Dashboard() {
         load()
     }, [isUser])
 
-    const totalDonated = donations.reduce((sum, d) => sum + (d.amount || 0), 0)
-    const totalRaised = campaigns.reduce((sum, c) => sum + (c.amountRaised || 0), 0)
+    const totalDonated = donations.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+    const totalRaised = campaigns.reduce((sum, c) => sum + (parseFloat(c.amountRaised) || 0), 0)
 
     // User Dashboard
     if (isUser) {

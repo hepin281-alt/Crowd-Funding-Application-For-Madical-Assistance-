@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -10,9 +10,15 @@ export default function CampaignCreate() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({ medicalBill: '', identityProof: '' })
   const [showHospitalInput, setShowHospitalInput] = useState(false)
   const [customHospital, setCustomHospital] = useState('')
   const [isDraft, setIsDraft] = useState(false)
+  const [uploading, setUploading] = useState({ cover: false, bill: false, identity: false })
+
+  const coverInputRef = useRef(null)
+  const medicalBillInputRef = useRef(null)
+  const identityProofInputRef = useRef(null)
 
   // Step 1: Campaign Basics
   const [campaignTitle, setCampaignTitle] = useState('')
@@ -41,6 +47,26 @@ export default function CampaignCreate() {
   useEffect(() => {
     api.hospitals.list().then(setHospitals).catch(() => setHospitals([]))
   }, [])
+
+  const handleUpload = async (file, setUrl, key) => {
+    if (!file) return
+    setUploading((prev) => ({ ...prev, [key]: true }))
+    try {
+      const result = await api.uploads.upload(file)
+      setUrl(result.url)
+      if (key === 'bill') {
+        setFieldErrors((prev) => ({ ...prev, medicalBill: '' }))
+      }
+      if (key === 'identity') {
+        setFieldErrors((prev) => ({ ...prev, identityProof: '' }))
+      }
+      setError('')
+    } catch (err) {
+      setError(err.message || 'Upload failed')
+    } finally {
+      setUploading((prev) => ({ ...prev, [key]: false }))
+    }
+  }
 
   if (!user || user.role !== 'user') {
     navigate('/login')
@@ -96,6 +122,21 @@ export default function CampaignCreate() {
   }
 
   const validateStep4 = () => {
+    const nextFieldErrors = { medicalBill: '', identityProof: '' }
+    let hasError = false
+    if (!medicalBillUrl.trim()) {
+      nextFieldErrors.medicalBill = 'Medical estimate or bill is required'
+      hasError = true
+    }
+    if (!identityProofUrl.trim()) {
+      nextFieldErrors.identityProof = 'Patient identity proof is required'
+      hasError = true
+    }
+    setFieldErrors(nextFieldErrors)
+    if (hasError) {
+      setError('Please fix the required fields below')
+      return false
+    }
     if (payoutMode === 'PERSONAL_ACCOUNT') {
       if (!bankAccountHolder.trim()) {
         setError('Bank account holder name is required')
@@ -405,13 +446,32 @@ export default function CampaignCreate() {
 
               <div className="form-group">
                 <label>Cover Image URL (Optional)</label>
-                <input
-                  type="url"
-                  value={coverImageUrl}
-                  onChange={(e) => setCoverImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="form-input"
-                />
+                <div className="upload-row">
+                  <input
+                    type="url"
+                    value={coverImageUrl}
+                    onChange={(e) => setCoverImageUrl(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                    className="form-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={uploading.cover}
+                  >
+                    {uploading.cover ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="file-input-hidden"
+                    onChange={(e) =>
+                      handleUpload(e.target.files?.[0], setCoverImageUrl, 'cover')
+                    }
+                  />
+                </div>
                 <small>High-quality photo of the patient (or relevant medical setting)</small>
                 {coverImageUrl && (
                   <div className="image-preview">
@@ -482,26 +542,82 @@ export default function CampaignCreate() {
               </div>
 
               <div className="form-group">
-                <label>Medical Estimate / Bill (Optional)</label>
-                <input
-                  type="url"
-                  value={medicalBillUrl}
-                  onChange={(e) => setMedicalBillUrl(e.target.value)}
-                  placeholder="https://example.com/medical-bill.pdf"
-                  className="form-input"
-                />
+                <label>Medical Estimate / Bill *</label>
+                <div className="upload-row">
+                  <input
+                    type="url"
+                    value={medicalBillUrl}
+                    onChange={(e) => {
+                      setMedicalBillUrl(e.target.value)
+                      if (e.target.value.trim()) {
+                        setFieldErrors((prev) => ({ ...prev, medicalBill: '' }))
+                      }
+                    }}
+                    placeholder="https://example.com/medical-bill.pdf"
+                    className="form-input"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => medicalBillInputRef.current?.click()}
+                    disabled={uploading.bill}
+                  >
+                    {uploading.bill ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <input
+                    ref={medicalBillInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="file-input-hidden"
+                    onChange={(e) =>
+                      handleUpload(e.target.files?.[0], setMedicalBillUrl, 'bill')
+                    }
+                  />
+                </div>
+                {fieldErrors.medicalBill && (
+                  <span className="field-error">{fieldErrors.medicalBill}</span>
+                )}
                 <small>Official letter or estimate from hospital (builds trust)</small>
               </div>
 
               <div className="form-group">
-                <label>Patient Identity Proof (Optional)</label>
-                <input
-                  type="url"
-                  value={identityProofUrl}
-                  onChange={(e) => setIdentityProofUrl(e.target.value)}
-                  placeholder="https://example.com/id-proof.pdf"
-                  className="form-input"
-                />
+                <label>Patient Identity Proof *</label>
+                <div className="upload-row">
+                  <input
+                    type="url"
+                    value={identityProofUrl}
+                    onChange={(e) => {
+                      setIdentityProofUrl(e.target.value)
+                      if (e.target.value.trim()) {
+                        setFieldErrors((prev) => ({ ...prev, identityProof: '' }))
+                      }
+                    }}
+                    placeholder="https://example.com/id-proof.pdf"
+                    className="form-input"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => identityProofInputRef.current?.click()}
+                    disabled={uploading.identity}
+                  >
+                    {uploading.identity ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <input
+                    ref={identityProofInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="file-input-hidden"
+                    onChange={(e) =>
+                      handleUpload(e.target.files?.[0], setIdentityProofUrl, 'identity')
+                    }
+                  />
+                </div>
+                {fieldErrors.identityProof && (
+                  <span className="field-error">{fieldErrors.identityProof}</span>
+                )}
                 <small>Government ID for verification</small>
               </div>
 

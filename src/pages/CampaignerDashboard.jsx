@@ -19,6 +19,7 @@ export default function CampaignerDashboard() {
   const statusLabel = (s) => {
     const map = {
       pending_hospital_verification: 'Awaiting Hospital Verification',
+      needs_info: 'Needs Updated Documents',
       hospital_verified: 'Verified by Hospital',
       active: 'Active - Receiving Donations',
       rejected: 'Rejected',
@@ -31,6 +32,8 @@ export default function CampaignerDashboard() {
     switch (status) {
       case 'pending_hospital_verification':
         return 'Created → Pending Hospital Verification'
+      case 'needs_info':
+        return 'Created → Hospital Requested Updates'
       case 'hospital_verified':
         return 'Created → Hospital Verified → Awaiting Donations / Invoices'
       case 'active':
@@ -76,6 +79,11 @@ export default function CampaignerDashboard() {
                   </div>
                   <p className="case-desc">{c.description}</p>
                   <p className="timeline-text">{timelineLabel(c.status)}</p>
+                  {c.status === 'needs_info' && c.hospitalAdminNote && (
+                    <p className="case-desc">
+                      <strong>Admin note:</strong> {c.hospitalAdminNote}
+                    </p>
+                  )}
                   <p className="case-hospital">{c.hospital?.name}</p>
                   <p className="case-amount">
                     ₹{(c.amountRaised || 0).toLocaleString()} / ₹
@@ -84,6 +92,11 @@ export default function CampaignerDashboard() {
                   {c.status === 'hospital_verified' && c.amountRaised > 0 && (
                     <Link to={`/campaigner/campaign/${c._id}/invoice`}>
                       <button className="btn btn-secondary">Upload Invoice</button>
+                    </Link>
+                  )}
+                  {c.status === 'needs_info' && (
+                    <Link to={`/campaigns/${c._id}`}>
+                      <button className="btn btn-primary">Update Documents</button>
                     </Link>
                   )}
                 </div>
