@@ -66,7 +66,7 @@ router.get('/:id', async (req, res) => {
     const c = await Campaign.findByPk(req.params.id, {
       include: [
         { model: Hospital, as: 'Hospital', attributes: ['id', 'name', 'address', 'city'] },
-        { model: User, as: 'User', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'user', attributes: ['id', 'name', 'email'] },
       ],
       raw: true,
       nest: true,
@@ -76,7 +76,7 @@ router.get('/:id', async (req, res) => {
       ...c,
       _id: c.id,
       hospital: c.Hospital,
-      campaigner: c.User ? { _id: c.User.id, name: c.User.name, email: c.User.email } : null,
+      campaigner: c.user ? { _id: c.user.id, name: c.user.name, email: c.user.email } : null,
       patientName: c.patient_name,
       amountNeeded: parseFloat(c.target_amount),
       amountRaised: parseFloat(c.raised_amount || 0),

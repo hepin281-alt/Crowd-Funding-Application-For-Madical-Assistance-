@@ -1,42 +1,37 @@
 import express from 'express'
-import { Donation, Campaign, User } from '../models/index.js'
+import { db, Donation, Campaign, User, Receipt } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
 import { sendDonationReceipt } from '../services/notify.js'
+import { createDonationWithLock } from '../services/donationService.js'
 
 const router = express.Router()
+const SKIP_CAMPAIGN_VERIFICATION = process.env.SKIP_CAMPAIGN_VERIFICATION === 'true'
 
 // POST /api/donations
 router.post('/', protect, requireRole('user'), async (req, res) => {
   try {
     const { campaignId, amount } = req.body
+    const requestedAmount = Number(amount)
 
-    if (!campaignId || !amount || amount <= 0) {
+    if (!campaignId || !Number.isFinite(requestedAmount) || requestedAmount <= 0) {
       return res.status(400).json({ message: 'Valid campaignId and amount are required' })
     }
 
-    const campaign = await Campaign.findByPk(campaignId)
-    if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
-    if (campaign.status !== 'hospital_verified' && campaign.status !== 'active') {
-      return res.status(400).json({ message: 'Campaign is not open for donations' })
-    }
-
-    const donation = await Donation.create({
-      campaign_id: parseInt(campaignId),
-      donor_id: req.user.id,
-      amount,
-    })
-
-    const newRaised = parseFloat(campaign.raised_amount || 0) + parseFloat(amount)
-    await campaign.update({
-      raised_amount: newRaised,
-      status: 'active',
-    })
+    const { donation, campaignName } = await createDonationWithLock(
+      { db, Campaign, Donation, Receipt },
+      {
+        campaignId,
+        requestedAmount,
+        user: req.user,
+        skipCampaignVerification: SKIP_CAMPAIGN_VERIFICATION,
+      }
+    )
 
     // Send donation receipt email
     await sendDonationReceipt(
       req.user.email,
-      campaign.patient_name,
-      parseFloat(amount),
+      campaignName,
+      requestedAmount,
       campaignId
     )
 
@@ -57,6 +52,9 @@ router.post('/', protect, requireRole('user'), async (req, res) => {
         : null,
     })
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message })
+    }
     res.status(500).json({ message: err.message })
   }
 })

@@ -79,6 +79,14 @@ export default function CampaignDetail() {
         setError('')
         setSuccess(false)
 
+        const currentNeeded = Number(campaign?.amountNeeded) || 0
+        const currentRaised = Number(campaign?.amountRaised) || 0
+        const isFullyFundedNow = currentNeeded > 0 && currentRaised >= currentNeeded
+        if (isFullyFundedNow) {
+            setError('This campaign is fully funded')
+            return
+        }
+
         if (!isDonor) {
             setError('Please login as a donor to contribute')
             return
@@ -87,6 +95,10 @@ export default function CampaignDetail() {
         const amount = Number(donationAmount)
         if (!amount || amount <= 0) {
             setError('Please enter a valid amount')
+            return
+        }
+        if (amount > remaining) {
+            setError(`You can donate up to ₹${remaining.toLocaleString()}`)
             return
         }
 
@@ -129,24 +141,77 @@ export default function CampaignDetail() {
         )
     }
 
-    const progress = campaign.amountNeeded > 0
-        ? Math.min((campaign.amountRaised / campaign.amountNeeded) * 100, 100)
+    const amountNeeded = Number(campaign.amountNeeded) || 0
+    const amountRaised = Number(campaign.amountRaised) || 0
+    const progress = amountNeeded > 0
+        ? Math.min((amountRaised / amountNeeded) * 100, 100)
         : 0
+    const remaining = Math.max(amountNeeded - amountRaised, 0)
+    const isFullyFunded = amountNeeded > 0 && amountRaised >= amountNeeded
 
     const statusLabel = {
-        pending_hospital_verification: 'Awaiting Hospital Verification',
-        needs_info: 'Needs Updated Documents',
-        hospital_verified: 'Verified by Hospital',
-        active: 'Active',
-        completed: 'Completed',
-        rejected: 'Rejected'
+        pending_hospital_verification: 'Under Hospital Review',
+        needs_info: 'Action Required: Update Documents',
+        hospital_verified: 'Hospital Verified',
+        active: 'Accepting Donations',
+        completed: 'Funds Disbursed',
+        rejected: 'Rejected by Hospital',
     }[campaign.status] || campaign.status
 
+    const statusGuidance = {
+        pending_hospital_verification: {
+            meaning: 'Hospital team is reviewing submitted documents and treatment details.',
+            nextStep: 'Wait for verification result. You will see either approval or a request for updates.',
+        },
+        needs_info: {
+            meaning: 'Hospital requested updated documents before verification can continue.',
+            nextStep: 'Upload corrected files and click Resubmit for Verification.',
+        },
+        hospital_verified: {
+            meaning: 'Campaign is verified and eligible for invoice workflow.',
+            nextStep: 'You can prepare invoice submission when treatment billing is due.',
+        },
+        active: {
+            meaning: 'Campaign is receiving donations and progressing toward target amount.',
+            nextStep: 'Track progress and submit invoices when payment milestone is reached.',
+        },
+        completed: {
+            meaning: 'Funding and settlement cycle has been completed for this campaign.',
+            nextStep: 'Use Invoice & Verification to review payout history and references.',
+        },
+        rejected: {
+            meaning: 'Hospital verification was rejected based on submitted details.',
+            nextStep: 'Review rejection details and create a corrected request if needed.',
+        },
+    }
+
+    const currentStatusGuidance = statusGuidance[campaign.status] || {
+        meaning: 'Status information is available for campaign lifecycle tracking.',
+        nextStep: 'Open Invoice & Verification for detailed processing updates.',
+    }
+
     const isOwner = user?.id && campaign.user_id && Number(user.id) === Number(campaign.user_id)
+    const formatDate = (value, fallback = 'Date not available') => {
+        if (!value) return fallback
+        const d = new Date(value)
+        return Number.isNaN(d.getTime()) ? fallback : d.toLocaleDateString()
+    }
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            navigate(-1)
+            return
+        }
+        navigate('/campaigns')
+    }
 
     return (
         <div className="campaign-detail-page">
             <div className="container">
+                <div style={{ marginBottom: '1rem' }}>
+                    <button type="button" className="btn btn-secondary" onClick={handleBack}>
+                        Back
+                    </button>
+                </div>
                 <div className="campaign-detail-grid">
                     <div className="campaign-main">
                         <div className="card campaign-header">
@@ -171,13 +236,18 @@ export default function CampaignDetail() {
 
                             <div className="campaign-progress">
                                 <div className="amount-raised">
-                                    <span className="amount-large">₹{campaign.amountRaised?.toLocaleString() || 0}</span>
-                                    <span className="amount-target"> raised of ₹{campaign.amountNeeded?.toLocaleString()}</span>
+                                    <span className="amount-large">₹{amountRaised.toLocaleString()}</span>
+                                    <span className="amount-target"> raised of ₹{amountNeeded.toLocaleString()}</span>
                                 </div>
                                 <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                                    <div className={`progress-fill ${isFullyFunded ? 'funded' : ''}`} style={{ width: `${progress}%` }}></div>
                                 </div>
-                                <p className="progress-text">{progress.toFixed(1)}% funded</p>
+                                <p className="progress-text">{isFullyFunded ? 'Fully funded' : `${progress.toFixed(1)}% funded`}</p>
+                                {isFullyFunded ? (
+                                    <p className="funded-message">This campaign has been fully funded. Thank you to all donors!</p>
+                                ) : (
+                                    <p className="remaining-text">₹{remaining.toLocaleString()} remaining to reach the goal</p>
+                                )}
                             </div>
                         </div>
 
@@ -194,7 +264,7 @@ export default function CampaignDetail() {
                                 {campaign.hospital.address && <p><strong>Address:</strong> {campaign.hospital.address}</p>}
                                 {campaign.verified_by_hospital_at && (
                                     <p className="verified-date">
-                                        ✓ Verified on {new Date(campaign.verified_by_hospital_at).toLocaleDateString()}
+                                        ✓ Verified on {formatDate(campaign.verified_by_hospital_at)}
                                     </p>
                                 )}
                             </div>
@@ -207,7 +277,7 @@ export default function CampaignDetail() {
                                     <div className="timeline-marker">✓</div>
                                     <div className="timeline-content">
                                         <h3>Campaign Created</h3>
-                                        <p>{new Date(campaign.created_at).toLocaleDateString()}</p>
+                                        <p>{formatDate(campaign.created_at)}</p>
                                     </div>
                                 </div>
 
@@ -230,7 +300,7 @@ export default function CampaignDetail() {
                                             <h3>Hospital Verification</h3>
                                             <p>
                                                 {campaign.verified_by_hospital_at
-                                                    ? new Date(campaign.verified_by_hospital_at).toLocaleDateString()
+                                                    ? formatDate(campaign.verified_by_hospital_at)
                                                     : 'Pending verification'}
                                             </p>
                                         </div>
@@ -275,14 +345,25 @@ export default function CampaignDetail() {
                     </div>
 
                     <div className="campaign-sidebar">
-                        {campaign.status === 'needs_info' && isOwner && (
+                        {isOwner && (
                             <div className="card review-docs">
-                                <h2>Update Verification Documents</h2>
-                                {campaign.hospitalAdminNote && (
+                                <h2>Campaign Actions</h2>
+                                <Link to={`/campaigner/campaign/${campaign._id}/invoice`}>
+                                    <button className="btn btn-secondary btn-full" style={{ marginBottom: '0.75rem' }}>
+                                        Invoice & Verification
+                                    </button>
+                                </Link>
+
+                                {campaign.hospitalAdminNote ? (
                                     <p className="doc-note">
                                         <strong>Admin note:</strong> {campaign.hospitalAdminNote}
                                     </p>
+                                ) : (
+                                    <p className="form-hint" style={{ marginTop: 0 }}>
+                                        Document resubmission unlocks only when hospital requests updates.
+                                    </p>
                                 )}
+
                                 <form className="doc-form" onSubmit={handleResubmit}>
                                     <label>Medical Estimate / Bill</label>
                                     <div className="upload-row">
@@ -292,12 +373,13 @@ export default function CampaignDetail() {
                                             onChange={(e) => setMedicalBillUrl(e.target.value)}
                                             placeholder="https://example.com/medical-bill.pdf"
                                             className="form-input"
+                                            disabled={campaign.status !== 'needs_info'}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm"
                                             onClick={() => billInputRef.current?.click()}
-                                            disabled={uploading.bill}
+                                            disabled={uploading.bill || campaign.status !== 'needs_info'}
                                         >
                                             {uploading.bill ? 'Uploading...' : 'Upload'}
                                         </button>
@@ -306,6 +388,7 @@ export default function CampaignDetail() {
                                             type="file"
                                             accept="image/*,application/pdf"
                                             className="file-input-hidden"
+                                            disabled={campaign.status !== 'needs_info'}
                                             onChange={(e) => handleDocUpload(e.target.files?.[0], setMedicalBillUrl, 'bill')}
                                         />
                                     </div>
@@ -318,12 +401,13 @@ export default function CampaignDetail() {
                                             onChange={(e) => setIdentityProofUrl(e.target.value)}
                                             placeholder="https://example.com/id-proof.pdf"
                                             className="form-input"
+                                            disabled={campaign.status !== 'needs_info'}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm"
                                             onClick={() => identityInputRef.current?.click()}
-                                            disabled={uploading.identity}
+                                            disabled={uploading.identity || campaign.status !== 'needs_info'}
                                         >
                                             {uploading.identity ? 'Uploading...' : 'Upload'}
                                         </button>
@@ -332,6 +416,7 @@ export default function CampaignDetail() {
                                             type="file"
                                             accept="image/*,application/pdf"
                                             className="file-input-hidden"
+                                            disabled={campaign.status !== 'needs_info'}
                                             onChange={(e) => handleDocUpload(e.target.files?.[0], setIdentityProofUrl, 'identity')}
                                         />
                                     </div>
@@ -339,55 +424,25 @@ export default function CampaignDetail() {
                                     {docError && <p className="auth-error">{docError}</p>}
                                     {docSuccess && <p className="auth-success">{docSuccess}</p>}
 
-                                    <button type="submit" className="btn btn-primary btn-full">
-                                        Resubmit for Verification
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary btn-full"
+                                        disabled={campaign.status !== 'needs_info'}
+                                    >
+                                        {campaign.status === 'needs_info'
+                                            ? 'Resubmit for Verification'
+                                            : 'Resubmission Locked'}
                                     </button>
                                 </form>
                             </div>
                         )}
-                        {(campaign.status === 'hospital_verified' || campaign.status === 'active') && (
-                            <div className="card donate-card">
-                                <h2>Support This Campaign</h2>
-                                {!user ? (
-                                    <div>
-                                        <p>Please login to donate</p>
-                                        <Link to="/login">
-                                            <button className="btn btn-primary btn-full">Login</button>
-                                        </Link>
-                                    </div>
-                                ) : !isDonor ? (
-                                    <div>
-                                        <p>Only donors can contribute to campaigns</p>
-                                        <Link to="/signup?role=donor">
-                                            <button className="btn btn-primary btn-full">Sign up as Donor</button>
-                                        </Link>
-                                    </div>
-                                ) : (
-                                    <form onSubmit={handleDonate} className="donate-form">
-                                        <label>Donation Amount (₹)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={donationAmount}
-                                            onChange={(e) => setDonationAmount(e.target.value)}
-                                            placeholder="Enter amount"
-                                            disabled={donating || success}
-                                        />
 
-                                        {error && <p className="auth-error">{error}</p>}
-                                        {success && <p className="auth-success">Thank you for your donation!</p>}
-
-                                        <button
-                                            type="submit"
-                                            className="btn btn-primary btn-full"
-                                            disabled={donating || success}
-                                        >
-                                            {donating ? 'Processing...' : success ? 'Donated!' : 'Donate Now'}
-                                        </button>
-                                    </form>
-                                )}
-                            </div>
-                        )}
+                        <div className="card trust-indicators">
+                            <h3>Status Guide</h3>
+                            <p><strong>Current:</strong> {statusLabel}</p>
+                            <p>{currentStatusGuidance.meaning}</p>
+                            <p><strong>Next step:</strong> {currentStatusGuidance.nextStep}</p>
+                        </div>
 
                         <div className="card trust-indicators">
                             <h3>Trust & Safety</h3>

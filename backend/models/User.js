@@ -14,7 +14,7 @@ const User = db.define(
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     password: { type: DataTypes.STRING, allowNull: false },
     role: {
-      type: DataTypes.ENUM('user', 'admin', 'hospital_admin'),
+      type: DataTypes.ENUM('user', 'admin', 'hospital_admin', 'super_admin'),
       allowNull: false,
       defaultValue: 'user',
     },
@@ -25,6 +25,8 @@ const User = db.define(
     is_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
     verification_code: { type: DataTypes.STRING, allowNull: true },
     verification_code_expires_at: { type: DataTypes.DATE, allowNull: true },
+    reset_token: { type: DataTypes.STRING, allowNull: true },
+    reset_token_expires_at: { type: DataTypes.DATE, allowNull: true },
   },
   {
     tableName: 'users',

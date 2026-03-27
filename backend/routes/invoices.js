@@ -32,12 +32,12 @@ router.get('/pending', protect, requireRole('employee'), async (req, res) => {
         _id: r.id,
         campaign: r.Campaign
           ? {
-              ...r.Campaign,
-              _id: r.Campaign.id,
-              patientName: r.Campaign.patient_name,
-              amountNeeded: parseFloat(r.Campaign.target_amount),
-              amountRaised: parseFloat(r.Campaign.raised_amount),
-            }
+            ...r.Campaign,
+            _id: r.Campaign.id,
+            patientName: r.Campaign.patient_name,
+            amountNeeded: parseFloat(r.Campaign.target_amount),
+            amountRaised: parseFloat(r.Campaign.raised_amount),
+          }
           : null,
         amount: r.requested_amount,
         documentUrl: r.invoice_image_url,
@@ -64,12 +64,12 @@ router.get('/matched', protect, requireRole('employee'), async (req, res) => {
         _id: r.id,
         campaign: r.Campaign
           ? {
-              ...r.Campaign,
-              _id: r.Campaign.id,
-              patientName: r.Campaign.patient_name,
-              amountNeeded: parseFloat(r.Campaign.target_amount),
-              amountRaised: parseFloat(r.Campaign.raised_amount),
-            }
+            ...r.Campaign,
+            _id: r.Campaign.id,
+            patientName: r.Campaign.patient_name,
+            amountNeeded: parseFloat(r.Campaign.target_amount),
+            amountRaised: parseFloat(r.Campaign.raised_amount),
+          }
           : null,
         amount: r.requested_amount,
         documentUrl: r.invoice_image_url,
@@ -141,7 +141,36 @@ router.get('/campaign/:campaignId', protect, async (req, res) => {
       order: [['created_at', 'DESC']],
       raw: true,
     })
-    res.json(list.map((r) => ({ ...r, _id: r.id })))
+    const requestIds = list.map((r) => r.id)
+
+    let latestTransactionByRequestId = new Map()
+    if (requestIds.length > 0) {
+      const transactions = await Transaction.findAll({
+        where: {
+          disbursement_request_id: { [Op.in]: requestIds },
+        },
+        order: [['created_at', 'DESC']],
+        raw: true,
+      })
+
+      latestTransactionByRequestId = new Map(
+        transactions.map((t) => [String(t.disbursement_request_id), t])
+      )
+    }
+
+    res.json(
+      list.map((r) => {
+        const txn = latestTransactionByRequestId.get(String(r.id))
+        return {
+          ...r,
+          _id: r.id,
+          amount: parseFloat(r.requested_amount),
+          documentUrl: r.invoice_image_url,
+          payoutRef: txn?.transaction_reference || null,
+          settledAt: txn?.created_at || null,
+        }
+      })
+    )
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

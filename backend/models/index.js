@@ -6,12 +6,14 @@ import Donation from './Donation.js'
 import DisbursementRequest from './DisbursementRequest.js'
 import Transaction from './Transaction.js'
 import Receipt from './Receipt.js'
+import AuditLog from './AuditLog.js'
 
 // Associations
 User.belongsTo(Hospital, { foreignKey: 'hospital_id' })
 Hospital.hasMany(User, { foreignKey: 'hospital_id' })
+Hospital.hasOne(User, { foreignKey: 'hospital_id', as: 'admin' })
 
-Campaign.belongsTo(User, { foreignKey: 'user_id' })
+Campaign.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 User.hasMany(Campaign, { foreignKey: 'user_id' })
 
 Campaign.belongsTo(Hospital, { foreignKey: 'hospital_id' })
@@ -32,6 +34,10 @@ DisbursementRequest.hasMany(Transaction, { foreignKey: 'disbursement_request_id'
 Receipt.belongsTo(Campaign, { foreignKey: 'campaign_id' })
 Receipt.belongsTo(Donation, { foreignKey: 'donation_id' })
 Receipt.belongsTo(DisbursementRequest, { foreignKey: 'disbursement_request_id' })
-Receipt.belongsTo(User, { foreignKey: 'donor_id' })
+Receipt.belongsTo(User, { foreignKey: 'donor_id', as: 'Donor' })
 
-export { db, User, Hospital, Campaign, Donation, DisbursementRequest, Transaction, Receipt }
+// AuditLog associations
+AuditLog.belongsTo(User, { foreignKey: 'admin_id' })
+User.hasMany(AuditLog, { foreignKey: 'admin_id' })
+
+export { db, User, Hospital, Campaign, Donation, DisbursementRequest, Transaction, Receipt, AuditLog }

@@ -8,7 +8,9 @@ export default function Dashboard() {
     const [campaigns, setCampaigns] = useState([])
     const [donations, setDonations] = useState([])
     const [receipts, setReceipts] = useState([])
+    const [pendingVerifications, setPendingVerifications] = useState([])
     const [loading, setLoading] = useState(true)
+    const [userTab, setUserTab] = useState('requests')
 
     useEffect(() => {
         const load = async () => {
@@ -22,6 +24,9 @@ export default function Dashboard() {
                     setCampaigns(Array.isArray(c) ? c : [])
                     setDonations(Array.isArray(d) ? d : [])
                     setReceipts(Array.isArray(r) ? r : [])
+                } else if (isAdmin && user?.role === 'hospital_admin') {
+                    const pending = await api.hospitalAdmin.pending().catch(() => [])
+                    setPendingVerifications(Array.isArray(pending) ? pending : [])
                 }
             } catch (err) {
                 console.error('Dashboard error:', err)
@@ -29,18 +34,80 @@ export default function Dashboard() {
             setLoading(false)
         }
         load()
-    }, [isUser])
+    }, [isUser, isAdmin, user?.role])
 
     const totalDonated = donations.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
     const totalRaised = campaigns.reduce((sum, c) => sum + (parseFloat(c.amountRaised) || 0), 0)
+    const receiptByDonationId = new Map()
+    receipts
+        .filter((r) => r?.donation_id)
+        .forEach((r) => {
+            const key = String(r.donation_id)
+            // Keep the first entry from DESC-sorted data to represent the latest receipt state.
+            if (!receiptByDonationId.has(key)) {
+                receiptByDonationId.set(key, r)
+            }
+        })
+
+    const statusLabel = (status) => {
+        const labels = {
+            pending_hospital_verification: 'Awaiting Hospital Verification',
+            needs_info: 'Needs Updated Documents',
+            hospital_verified: 'Hospital Verified',
+            active: 'Live',
+            completed: 'Completed',
+            rejected: 'Rejected',
+        }
+        return labels[status] || status || 'Pending'
+    }
+
+    const campaignBadgeClass = (status) => {
+        if (status === 'pending_hospital_verification') return 'status-pending_hospital_verification'
+        if (status === 'active' || status === 'hospital_verified' || status === 'completed') return 'status-active'
+        if (status === 'needs_info' || status === 'rejected') return 'status-needs_info'
+        return ''
+    }
+
+    const openReceipt = async (id) => {
+        try {
+            await api.receipts.downloadReceiptFile(id)
+        } catch (err) {
+            alert(err.message || 'Failed to download receipt')
+        }
+    }
+
+    const openCertificate = async (id) => {
+        try {
+            await api.receipts.downloadCertificateFile(id)
+        } catch (err) {
+            alert(err.message || 'Failed to download certificate')
+        }
+    }
 
     // User Dashboard
     if (isUser) {
         return (
-            <div className="dashboard user-dashboard">
+            <div className="dashboard user-dashboard user-dashboard-warm">
                 <div className="container">
-                    <h1>My Dashboard</h1>
-                    <p className="welcome-text">Welcome, {user?.name}!</p>
+                    <h1>CareFund User Dashboard</h1>
+                    <p className="welcome-text">Welcome, {user?.name}. Track your help requests and contributions in one place.</p>
+
+                    <div className="user-tabs card">
+                        <button
+                            type="button"
+                            className={`user-tab-btn ${userTab === 'requests' ? 'active' : ''}`}
+                            onClick={() => setUserTab('requests')}
+                        >
+                            My Help Requests
+                        </button>
+                        <button
+                            type="button"
+                            className={`user-tab-btn ${userTab === 'contributions' ? 'active' : ''}`}
+                            onClick={() => setUserTab('contributions')}
+                        >
+                            My Contributions
+                        </button>
+                    </div>
 
                     <div className="dashboard-stats">
                         <div className="stat-card card">
@@ -53,95 +120,206 @@ export default function Dashboard() {
                         </div>
                         <div className="stat-card card">
                             <span className="stat-value">{campaigns.length}</span>
-                            <span className="stat-label">Campaigns Created</span>
+                            <span className="stat-label">Help Requests Created</span>
                         </div>
                     </div>
 
-                    {/* My Campaigns Section */}
-                    <section className="campaigns-section">
-                        <div className="section-header">
-                            <h2>My Campaigns</h2>
-                        </div>
-
-                        {loading ? (
-                            <p className="loading-text">Loading campaigns...</p>
-                        ) : campaigns.length === 0 ? (
-                            <div className="empty-state card">
-                                <p>You haven't created any campaigns yet.</p>
-                                <Link to="/create">
-                                    <button className="btn btn-primary">Create Campaign</button>
+                    {userTab === 'requests' ? (
+                        <section className="campaigns-section">
+                            <div className="section-header">
+                                <h2>Campaigner View</h2>
+                                <Link to="/campaigner/create">
+                                    <button className="btn btn-primary">Create New Request</button>
                                 </Link>
                             </div>
-                        ) : (
-                            <div className="case-list">
-                                {campaigns.map((c) => (
-                                    <div key={c._id || c.id} className="case-item card campaign-item">
-                                        <div className="case-item-header">
-                                            <h3>{c.patientName || 'Campaign'}</h3>
-                                            <span className="status-badge">{c.status || 'pending'}</span>
-                                        </div>
-                                        <p className="case-desc">{c.description}</p>
-                                        <p className="case-amount">
-                                            ₹{(c.amountRaised || 0).toLocaleString()} / ₹{(c.amountNeeded || 0).toLocaleString()} raised
-                                        </p>
-                                        <Link to={`/campaigns/${c._id || c.id}`}>
-                                            <button className="btn btn-secondary">View Campaign</button>
-                                        </Link>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
 
-                    {/* Donation History Section */}
-                    <section className="donation-history">
-                        <h2>My Donations</h2>
-                        {loading ? (
-                            <p className="loading-text">Loading donations...</p>
-                        ) : donations.length === 0 ? (
-                            <div className="empty-state card">
-                                <p>You haven't made any donations yet.</p>
-                                <Link to="/campaigns">
-                                    <button className="btn btn-primary">Browse Campaigns</button>
+                            {loading ? (
+                                <p className="loading-text">Loading help requests...</p>
+                            ) : campaigns.length === 0 ? (
+                                <div className="empty-state card">
+                                    <p>You have not created a help request yet.</p>
+                                    <Link to="/campaigner/create">
+                                        <button className="btn btn-primary">Create Campaign</button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="case-list">
+                                    {campaigns.map((c) => {
+                                        const amountNeeded = Number(c.amountNeeded) || 0
+                                        const amountRaised = Number(c.amountRaised) || 0
+                                        const progress = amountNeeded > 0 ? Math.min((amountRaised / amountNeeded) * 100, 100) : 0
+                                        const campaignId = c._id || c.id
+                                        const campaignUrl = `${window.location.origin}/campaigns/${campaignId}`
+                                        const shareMessage = encodeURIComponent(`Support ${c.patientName || 'this patient'} on CareFund`) + `&url=${encodeURIComponent(campaignUrl)}`
+
+                                        return (
+                                            <div key={campaignId} className="case-item card campaign-item warm-card">
+                                                <div className="case-item-header">
+                                                    <h3>{c.patientName || 'Campaign'}</h3>
+                                                    <span className={`status-badge ${campaignBadgeClass(c.status)}`}>{statusLabel(c.status)}</span>
+                                                </div>
+
+                                                <div className="trust-badge-row">
+                                                    <span className="trust-badge">Hospital Verified Flow</span>
+                                                    <span className="trust-badge">Direct Payout</span>
+                                                    <span className="trust-badge">ID Verified</span>
+                                                </div>
+
+                                                <p className="case-desc">{c.description}</p>
+
+                                                {c.status === 'pending_hospital_verification' && (
+                                                    <p className="case-meta"><strong>Verification:</strong> Currently being reviewed by {c.hospital?.name || 'the selected hospital'}.</p>
+                                                )}
+
+                                                <div className="case-progress">
+                                                    <div className="progress-bar">
+                                                        <div className="progress-fill" style={{ width: `${progress}%` }} />
+                                                    </div>
+                                                    <p className="progress-text">
+                                                        ₹{amountRaised.toLocaleString()} of ₹{amountNeeded.toLocaleString()} raised ({progress.toFixed(1)}%)
+                                                    </p>
+                                                </div>
+
+                                                <div className="case-meta">
+                                                    <strong>Document Vault:</strong>{' '}
+                                                    {c.medicalBillUrl ? <a href={c.medicalBillUrl} target="_blank" rel="noreferrer">Medical Bill</a> : 'Medical Bill pending'}{' '}
+                                                    |{' '}
+                                                    {c.patientIdentityProofUrl ? <a href={c.patientIdentityProofUrl} target="_blank" rel="noreferrer">Identity Proof</a> : 'Identity Proof pending'}
+                                                </div>
+
+                                                <div className="case-meta">
+                                                    <strong>Transparency Feed:</strong>{' '}
+                                                    {c.status === 'completed'
+                                                        ? 'Hospital settlement completed and campaign closed.'
+                                                        : c.status === 'hospital_verified' || c.status === 'active'
+                                                            ? 'Campaign is eligible for direct hospital payout once invoices are matched.'
+                                                            : 'Awaiting verification stage completion before payout lifecycle starts.'}
+                                                </div>
+
+                                                <div className="share-row">
+                                                    <a
+                                                        className="btn btn-secondary"
+                                                        href={`https://wa.me/?text=${shareMessage}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Share on WhatsApp
+                                                    </a>
+                                                    <a
+                                                        className="btn btn-secondary"
+                                                        href={`https://twitter.com/intent/tweet?text=${shareMessage}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Share on Twitter
+                                                    </a>
+                                                    <a
+                                                        className="btn btn-secondary"
+                                                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(campaignUrl)}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Share on Facebook
+                                                    </a>
+                                                </div>
+
+                                                <div className="case-actions">
+                                                    <Link to={`/campaigns/${campaignId}`}>
+                                                        <button className="btn btn-primary">Open Campaign</button>
+                                                    </Link>
+                                                    <Link to={`/campaigner/campaign/${campaignId}/invoice`}>
+                                                        <button className="btn btn-secondary">Invoice & Verification</button>
+                                                    </Link>
+                                                    {c.status === 'needs_info' && (
+                                                        <Link to={`/campaigns/${campaignId}`}>
+                                                            <button className="btn btn-secondary">Update Documents</button>
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </section>
+                    ) : (
+                        <section className="donation-history">
+                            <h2>Donor View</h2>
+                            <div className="section-header" style={{ marginBottom: '1rem' }}>
+                                <Link to="/donor/campaigns">
+                                    <button className="btn btn-primary">Browse Running Campaigns</button>
                                 </Link>
                             </div>
-                        ) : (
-                            <div className="donation-list">
-                                {donations.map((d) => (
-                                    <div key={d._id || d.id} className="donation-item card">
-                                        <div className="donation-info">
-                                            <h3>{d.campaign?.patientName || 'Campaign'}</h3>
-                                            <span className="donation-date">
-                                                {d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}
-                                            </span>
-                                        </div>
-                                        <span className="donation-amount">₹{d.amount}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
+                            {loading ? (
+                                <p className="loading-text">Loading contributions...</p>
+                            ) : donations.length === 0 ? (
+                                <div className="empty-state card">
+                                    <p>You have not made any contribution yet.</p>
+                                    <Link to="/campaigns">
+                                        <button className="btn btn-primary">Browse Campaigns</button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="donation-list">
+                                        {donations.map((d) => {
+                                            const donationId = String(d._id || d.id || d.donation_id || '')
+                                            const receipt = receiptByDonationId.get(donationId)
+                                            return (
+                                                <div key={donationId} className="donation-item card donation-item-stacked warm-card">
+                                                    <div className="donation-info">
+                                                        <h3>{d.campaign?.patientName || 'Campaign'}</h3>
+                                                        <span className="donation-date">
+                                                            {d.createdAt || d.created_at ? new Date(d.createdAt || d.created_at).toLocaleDateString() : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="donation-amount">₹{(Number(d.amount) || 0).toLocaleString()}</span>
 
-                    {/* Receipts Section */}
-                    {receipts.length > 0 && (
-                        <section className="receipts-section">
-                            <h2>Utilization Receipts</h2>
-                            <p>Proof of how donations were used.</p>
-                            <div className="donation-list">
-                                {receipts.map((r) => (
-                                    <div key={r._id || r.id} className="donation-item card receipt-item">
-                                        <div className="donation-info">
-                                            <h3>{r.campaign?.patientName || 'Campaign'}</h3>
-                                            <span>Amount: ₹{r.amount}</span>
-                                            {r.invoice?.documentUrl && (
-                                                <a href={r.invoice.documentUrl} target="_blank" rel="noreferrer">
-                                                    View proof
-                                                </a>
-                                            )}
-                                        </div>
+                                                    <div className="donation-actions-row">
+                                                        {receipt ? (
+                                                            <>
+                                                                <button className="btn btn-primary" onClick={() => openReceipt(receipt._id || receipt.id)}>
+                                                                    Download Receipt
+                                                                </button>
+                                                                <button className="btn btn-secondary" onClick={() => openCertificate(receipt._id || receipt.id)}>
+                                                                    Download Tax Certificate
+                                                                </button>
+                                                                {receipt.invoice?.documentUrl ? (
+                                                                    <a href={receipt.invoice.documentUrl} target="_blank" rel="noreferrer" className="btn btn-secondary">
+                                                                        View Utilization Proof
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="case-meta">Utilization proof pending</span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="case-meta">Receipt will appear once processed.</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div className="impact-feed card warm-card">
+                                        <h3>Impact Feed</h3>
+                                        <ul>
+                                            {donations.slice(0, 5).map((d) => {
+                                                const donationId = String(d._id || d.id || d.donation_id || '')
+                                                const receipt = receiptByDonationId.get(donationId)
+                                                const reachedGoal = ['completed'].includes(d.campaign?.status)
+                                                const hasProof = !!receipt?.invoice?.documentUrl
+                                                const text = reachedGoal
+                                                    ? `${d.campaign?.patientName || 'A patient'} reached their goal. Thank you for helping.`
+                                                    : hasProof
+                                                        ? `New utilization proof is available for ${d.campaign?.patientName || 'your supported campaign'}.`
+                                                        : `${d.campaign?.patientName || 'Campaign'} is still in treatment journey. Updates expected soon.`
+                                                return <li key={`impact-${donationId}`}>{text}</li>
+                                            })}
+                                        </ul>
+                                    </div>
+                                </>
+                            )}
                         </section>
                     )}
                 </div>
@@ -151,17 +329,52 @@ export default function Dashboard() {
 
     // Admin Dashboard
     if (isAdmin) {
+        const isHospitalAdmin = user?.role === 'hospital_admin'
         return (
             <div className="dashboard admin-dashboard">
                 <div className="container">
-                    <h1>Admin Dashboard</h1>
-                    <p className="welcome-text">Welcome, Admin {user?.name}!</p>
+                    <h1>{isHospitalAdmin ? 'Hospital Admin Dashboard' : 'Admin Dashboard'}</h1>
+                    <p className="welcome-text">Welcome, {isHospitalAdmin ? 'Hospital Admin' : 'Admin'} {user?.name}!</p>
+
+                    {isHospitalAdmin && (
+                        <div className="dashboard-stats">
+                            <div className="stat-card card">
+                                <span className="stat-label">Hospital</span>
+                                <span className="stat-value">{user?.hospital_name || '—'}</span>
+                                <span className="stat-label">License: {user?.license_number || '—'}</span>
+                            </div>
+                        </div>
+                    )}
 
                     <section className="pending-verifications">
                         <h2>Pending User Verifications</h2>
-                        <div className="empty-state card">
-                            <p>No pending verifications at this time.</p>
-                        </div>
+                        {loading ? (
+                            <p className="loading-text">Loading...</p>
+                        ) : pendingVerifications.length === 0 ? (
+                            <div className="empty-state card">
+                                <p>No pending verifications at this time.</p>
+                            </div>
+                        ) : (
+                            <div className="verification-list">
+                                {pendingVerifications.map((c) => (
+                                    <div key={c._id} className="verification-item card">
+                                        <div className="verification-header">
+                                            <h3>{c.patientName}</h3>
+                                            <span className="amount">₹{c.amountNeeded?.toLocaleString()}</span>
+                                        </div>
+                                        <p><strong>Doctor:</strong> {c.treatingDoctorName || '—'}</p>
+                                        <p><strong>Condition:</strong> {c.medicalCondition || '—'}</p>
+                                        <p><strong>Campaigner:</strong> {c.campaigner?.name} ({c.campaigner?.email})</p>
+                                        <p className="description">{c.description}</p>
+                                        <div className="action-buttons">
+                                            <Link to={`/hospital/verify/${c._id}`}>
+                                                <button className="btn btn-primary">Review & Verify</button>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </section>
                 </div>
             </div>

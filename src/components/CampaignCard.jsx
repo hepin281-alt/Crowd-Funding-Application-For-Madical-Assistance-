@@ -8,12 +8,16 @@ export default function CampaignCard({ campaign, onDonated }) {
   const [amount, setAmount] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const canDonate = user?.role === 'user'
 
   const c = campaign
-  const percent = Math.min(
-    100,
-    Math.round(((c.amountRaised || 0) / c.amountNeeded) * 100)
-  )
+  const amountNeeded = Number(c.amountNeeded) || 0
+  const amountRaised = Number(c.amountRaised) || 0
+  const percent = amountNeeded > 0
+    ? Math.min(100, Math.round((amountRaised / amountNeeded) * 100))
+    : 0
+  const remaining = Math.max(amountNeeded - amountRaised, 0)
+  const isFullyFunded = amountNeeded > 0 && amountRaised >= amountNeeded
   const isHospitalVerified =
     c.status === 'hospital_verified' || c.status === 'active'
 
@@ -21,9 +25,17 @@ export default function CampaignCard({ campaign, onDonated }) {
     e.preventDefault()
     e.stopPropagation()
     setError('')
+    if (isFullyFunded) {
+      setError('This campaign is fully funded')
+      return
+    }
     const amt = Number(amount)
     if (!amt || amt <= 0) {
       setError('Enter a valid amount')
+      return
+    }
+    if (amt > remaining) {
+      setError(`You can donate up to ₹${remaining.toLocaleString()}`)
       return
     }
     setSubmitting(true)
@@ -40,11 +52,15 @@ export default function CampaignCard({ campaign, onDonated }) {
 
   return (
     <div className="case-card card campaign-card">
-      {isHospitalVerified && (
+      {isFullyFunded ? (
+        <span className="case-status status-funded badge-funded">
+          ✓ Fully Funded
+        </span>
+      ) : isHospitalVerified ? (
         <span className="case-status status-verified badge-hospital">
           ✓ Verified by Hospital
         </span>
-      )}
+      ) : null}
 
       <Link to={`/campaigns/${c._id}`} className="campaign-card-link">
         <h3>{c.patientName}</h3>
@@ -54,24 +70,37 @@ export default function CampaignCard({ campaign, onDonated }) {
         <p className="case-desc">{c.description}</p>
         <div className="case-progress">
           <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${percent}%` }} />
+            <div className={`progress-fill ${isFullyFunded ? 'funded' : ''}`} style={{ width: `${percent}%` }} />
           </div>
           <p className="progress-text">
-            ₹{(c.amountRaised || 0).toLocaleString()} raised of ₹
-            {c.amountNeeded.toLocaleString()} ({percent}%)
+            ₹{amountRaised.toLocaleString()} raised of ₹
+            {amountNeeded.toLocaleString()} ({percent}%)
           </p>
+          {isFullyFunded ? (
+            <p className="funded-message">This campaign has been fully funded. Thank you to all donors!</p>
+          ) : (
+            <p className="remaining-text">₹{remaining.toLocaleString()} remaining to reach the goal</p>
+          )}
         </div>
       </Link>
 
-      {user ? (
+      {isFullyFunded ? (
+        <div className="funded-state">
+          <button className="btn btn-primary btn-full" disabled>
+            Fully Funded
+          </button>
+        </div>
+      ) : canDonate ? (
         <form onSubmit={handleDonate} className="donate-form">
           <input
             type="number"
             min="1"
+            max={remaining > 0 ? remaining : undefined}
             placeholder="Amount (₹)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
+          <p className="remaining-text">You can donate up to ₹{remaining.toLocaleString()}</p>
           <button
             type="submit"
             className="btn btn-primary btn-full"
@@ -81,6 +110,8 @@ export default function CampaignCard({ campaign, onDonated }) {
           </button>
           {error && <p className="auth-error">{error}</p>}
         </form>
+      ) : user ? (
+        <p className="remaining-text">Donation is available only for user accounts.</p>
       ) : (
         <Link to="/signup">
           <button className="btn btn-primary btn-full">

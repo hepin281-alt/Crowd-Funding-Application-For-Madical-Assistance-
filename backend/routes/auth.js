@@ -12,6 +12,11 @@ function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
+function generateResetToken() {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+}
+
+
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
   try {
@@ -222,6 +227,79 @@ router.get('/me', protect, (req, res) => {
   }
 
   res.json({ user: userObj })
+})
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' })
+    }
+
+    const user = await User.findOne({ where: { email } })
+    if (!user) {
+      // Return success even if user not found (security best practice)
+      return res.json({ message: 'If email exists, password reset link has been sent' })
+    }
+
+    const resetToken = generateResetToken()
+    const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour
+
+    await user.update({
+      reset_token: resetToken,
+      reset_token_expires_at: resetTokenExpiresAt,
+    })
+
+    console.log(`[CareFund] Password reset token for ${user.email}: ${resetToken}`)
+
+    const payload = { message: 'Password reset link sent to your email' }
+    if (process.env.NODE_ENV !== 'production') {
+      payload.resetToken = resetToken
+    }
+    res.json(payload)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+})
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body
+
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and password are required' })
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' })
+    }
+
+    const user = await User.findOne({
+      where: { reset_token: token }
+    })
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' })
+    }
+
+    if (!user.reset_token_expires_at || new Date() > user.reset_token_expires_at) {
+      await user.update({ reset_token: null, reset_token_expires_at: null })
+      return res.status(400).json({ message: 'Reset token has expired' })
+    }
+
+    await user.update({
+      password,
+      reset_token: null,
+      reset_token_expires_at: null,
+    })
+
+    res.json({ message: 'Password reset successfully' })
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
 })
 
 export default router

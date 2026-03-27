@@ -4678,3 +4678,161 @@ textarea {
   background: #7dd3fc !important;
   border-color: #7dd3fc !important;
 }
+
+/* ============================================================ */
+/* LOGIN & SIGNUP PAGE STYLING */
+/* ============================================================ */
+
+/* Auth Page Background */
+[data-theme='dark'] .auth-page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+/* Auth Card Styling */
+[data-theme='dark'] .auth-card,
+[data-theme='dark'] .card {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Form Inputs - Critical fix for dark mode */
+[data-theme='dark'] .auth-form input,
+[data-theme='dark'] .auth-form select,
+[data-theme='dark'] .auth-form textarea {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme='dark'] .auth-form input::placeholder,
+[data-theme='dark'] .auth-form select::placeholder,
+[data-theme='dark'] .auth-form textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+[data-theme='dark'] .auth-form input:focus,
+[data-theme='dark'] .auth-form select:focus,
+[data-theme='dark'] .auth-form textarea:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1) !important;
+}
+
+/* Disabled inputs */
+[data-theme='dark'] .auth-form input:disabled,
+[data-theme='dark'] .auth-form select:disabled {
+  background: #1e293b !important;
+  color: #9ca3af !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  opacity: 0.6 !important;
+}
+
+/* Auth Labels */
+[data-theme='dark'] .auth-form label {
+  color: #f8fafc !important;
+}
+
+/* Auth Subtitle */
+[data-theme='dark'] .auth-subtitle {
+  color: #cbd5e1 !important;
+}
+
+/* Auth Error Messages */
+[data-theme='dark'] .auth-error {
+  background: rgba(251, 113, 133, 0.1) !important;
+  border-color: rgba(251, 113, 133, 0.3) !important;
+  color: #fca5a5 !important;
+}
+
+/* Role Selection Container */
+[data-theme='dark'] .role-selection {
+  background: #0f172a !important;
+}
+
+/* Role Option Buttons */
+[data-theme='dark'] .role-option {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #d1d5db !important;
+}
+
+[data-theme='dark'] .role-option:hover {
+  background: #334155 !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-theme='dark'] .role-option.selected {
+  background: #334155 !important;
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme='dark'] .role-option input[type="radio"] {
+  accent-color: #38bdf8 !important;
+}
+
+/* Role Label */
+[data-theme='dark'] .role-label {
+  color: #e5e7eb !important;
+}
+
+/* Checkbox Label */
+[data-theme='dark'] .checkbox-label {
+  color: #d1d5db !important;
+}
+
+[data-theme='dark'] .checkbox-label input[type="checkbox"] {
+  accent-color: #38bdf8 !important;
+  background: #334155 !important;
+}
+
+/* Verification Note */
+[data-theme='dark'] .verification-note {
+  color: #cbd5e1 !important;
+  background: rgba(56, 189, 248, 0.1) !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Auth Footer & Links */
+[data-theme='dark'] .auth-footer {
+  color: #cbd5e1 !important;
+}
+
+[data-theme='dark'] .auth-links a {
+  color: #38bdf8 !important;
+}
+
+[data-theme='dark'] .auth-links a:hover {
+  color: #7dd3fc !important;
+}
+
+/* Primary Button in Auth */
+[data-theme='dark'] .btn-primary {
+  background: #38bdf8 !important;
+  color: #0f172a !important;
+  border: none !important;
+}
+
+[data-theme='dark'] .btn-primary:hover {
+  background: #7dd3fc !important;
+}
+
+[data-theme='dark'] .btn-full {
+  width: 100%;
+}
+
+/* Auth Form General Styling */
+[data-theme='dark'] .auth-form {
+  color: #d1d5db !important;
+}
+
+/* Form Group Spacing */
+[data-theme='dark'] .form-group {
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #e5e7eb !important;
+  font-weight: 500;
+}

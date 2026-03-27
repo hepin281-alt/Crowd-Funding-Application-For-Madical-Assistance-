@@ -13,7 +13,9 @@ export default function Login() {
 
   // Redirect to dashboard if already logged in
   if (user) {
-    if (user.role === 'admin' || user.role === 'hospital_admin') {
+    if (user.role === 'super_admin') {
+      navigate('/super-admin', { replace: true })
+    } else if (user.role === 'admin' || user.role === 'hospital_admin' || user.role === 'employee') {
       navigate('/admin-dashboard', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
@@ -37,7 +39,9 @@ export default function Login() {
       login(userData, token)
 
       // Redirect based on role
-      if (userData.role === 'admin' || userData.role === 'hospital_admin') {
+      if (userData.role === 'super_admin') {
+        navigate('/super-admin')
+      } else if (userData.role === 'admin' || userData.role === 'hospital_admin' || userData.role === 'employee') {
         navigate('/admin-dashboard')
       } else {
         navigate('/dashboard')
@@ -80,6 +84,10 @@ export default function Login() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <p className="auth-links">
+          <Link to="/forgot-password">Forgot Password?</Link>
+        </p>
 
         <p className="auth-footer">
           Don't have an account? <Link to="/signup">Sign up</Link>

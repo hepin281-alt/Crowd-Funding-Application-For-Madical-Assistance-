@@ -89,6 +89,11 @@ export default function CampaignerDashboard() {
                     ₹{(c.amountRaised || 0).toLocaleString()} / ₹
                     {c.amountNeeded.toLocaleString()} raised
                   </p>
+                  {['hospital_verified', 'active', 'completed'].includes(c.status) && (
+                    <Link to={`/campaigner/campaign/${c._id}/invoice`}>
+                      <button className="btn btn-secondary">Invoice & Verification</button>
+                    </Link>
+                  )}
                   {c.status === 'hospital_verified' && c.amountRaised > 0 && (
                     <Link to={`/campaigner/campaign/${c._id}/invoice`}>
                       <button className="btn btn-secondary">Upload Invoice</button>

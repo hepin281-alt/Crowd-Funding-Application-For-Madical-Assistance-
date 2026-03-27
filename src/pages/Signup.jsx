@@ -7,6 +7,25 @@ export default function Signup() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const [role, setRole] = useState('user')
+  const hospitalOptions = [
+    'City General Hospital',
+    'Care Medical Institute',
+    'Apollo Hospitals',
+    'Fortis Hospital',
+    'Manipal Hospital',
+    'Max Super Speciality Hospital',
+    'Lilavati Hospital',
+    'AIIMS Delhi',
+    'Narayana Health City',
+    'Ruby Hall Clinic',
+    'Medanta - The Medicity',
+    'Kokilaben Dhirubhai Ambani Hospital',
+    'Jaslok Hospital',
+    'Sri Ramachandra Medical Centre',
+    'Aster CMI Hospital',
+    'KIMS Hospital',
+    'Sterling Hospitals',
+  ]
 
   // User fields
   const [name, setName] = useState('')
@@ -19,6 +38,7 @@ export default function Signup() {
   const [adminName, setAdminName] = useState('')
   const [hospitalEmail, setHospitalEmail] = useState('')
   const [hospitalName, setHospitalName] = useState('')
+  const [customHospitalName, setCustomHospitalName] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
   const [hospitalPhone, setHospitalPhone] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
@@ -77,7 +97,10 @@ export default function Signup() {
     setError('')
     setLoading(true)
 
-    if (!adminName || !hospitalEmail || !hospitalName || !licenseNumber || !hospitalPhone || !adminPassword) {
+    const selectedHospitalName =
+      hospitalName === 'other' ? customHospitalName.trim() : hospitalName
+
+    if (!adminName || !hospitalEmail || !selectedHospitalName || !licenseNumber || !hospitalPhone || !adminPassword) {
       setError('Please fill in all fields.')
       setLoading(false)
       return
@@ -101,7 +124,7 @@ export default function Signup() {
         email: hospitalEmail,
         password: adminPassword,
         role: 'hospital_admin',
-        hospitalName,
+        hospitalName: selectedHospitalName,
         licenseNumber,
         phone: hospitalPhone,
       }
@@ -227,13 +250,29 @@ export default function Signup() {
             />
 
             <label>Hospital Name</label>
-            <input
-              type="text"
+            <select
               value={hospitalName}
               onChange={(e) => setHospitalName(e.target.value)}
-              placeholder="Official hospital name"
               required
-            />
+            >
+              <option value="">Select hospital name</option>
+              {hospitalOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+              <option value="other">Other (not listed)</option>
+            </select>
+
+            {hospitalName === 'other' && (
+              <input
+                type="text"
+                value={customHospitalName}
+                onChange={(e) => setCustomHospitalName(e.target.value)}
+                placeholder="Enter official hospital name"
+                required
+              />
+            )}
 
             <label>Hospital Registration / License Number</label>
             <input

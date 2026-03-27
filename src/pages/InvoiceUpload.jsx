@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,38 @@ export default function InvoiceUpload() {
   const [documentUrl, setDocumentUrl] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyError, setHistoryError] = useState('')
+  const [invoiceHistory, setInvoiceHistory] = useState([])
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      setHistoryLoading(true)
+      setHistoryError('')
+      try {
+        const list = await api.invoices.byCampaign(campaignId)
+        setInvoiceHistory(Array.isArray(list) ? list : [])
+      } catch (err) {
+        setHistoryError(err.message || 'Failed to load invoice history')
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+
+    if (campaignId) {
+      loadHistory()
+    }
+  }, [campaignId])
+
+  const statusLabel = (status) => {
+    const labels = {
+      PENDING: 'Pending Employee Review',
+      APPROVED: 'Matched - Ready for Settlement',
+      PAID: 'Settled - Paid to Hospital',
+      REJECTED: 'Rejected',
+    }
+    return labels[status] || status
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -38,7 +70,10 @@ export default function InvoiceUpload() {
 
     try {
       await api.invoices.create(campaignId, amt, documentUrl.trim())
-      navigate('/campaigner')
+      const list = await api.invoices.byCampaign(campaignId)
+      setInvoiceHistory(Array.isArray(list) ? list : [])
+      setAmount('')
+      setDocumentUrl('')
     } catch (err) {
       setError(err.message || 'Upload failed')
     } finally {
@@ -94,6 +129,41 @@ export default function InvoiceUpload() {
             {loading ? 'Uploading...' : 'Submit Invoice'}
           </button>
         </form>
+
+        <div style={{ marginTop: '1.5rem' }}>
+          <h2 style={{ marginBottom: '0.5rem' }}>Verification & Settlement History</h2>
+          <p className="form-hint" style={{ marginTop: 0 }}>
+            Use this to track whether your invoice is pending, matched by employee, or settled to hospital.
+          </p>
+
+          {historyLoading ? (
+            <p className="form-hint">Loading history...</p>
+          ) : historyError ? (
+            <p className="auth-error">{historyError}</p>
+          ) : invoiceHistory.length === 0 ? (
+            <p className="form-hint">No invoices submitted yet for this campaign.</p>
+          ) : (
+            <div className="case-list">
+              {invoiceHistory.map((inv) => (
+                <div key={inv._id || inv.id} className="case-item card" style={{ marginBottom: '0.75rem' }}>
+                  <p><strong>Amount:</strong> Rs {Number(inv.amount || inv.requested_amount || 0).toLocaleString()}</p>
+                  <p><strong>Status:</strong> {statusLabel(inv.status)}</p>
+                  <p>
+                    <strong>Invoice:</strong>{' '}
+                    <a href={inv.documentUrl || inv.invoice_image_url} target="_blank" rel="noreferrer">
+                      Open document
+                    </a>
+                  </p>
+                  {inv.admin_note && <p><strong>Admin Note:</strong> {inv.admin_note}</p>}
+                  {inv.payoutRef ? <p><strong>Payout Ref:</strong> {inv.payoutRef}</p> : null}
+                  {inv.settledAt ? (
+                    <p><strong>Settled At:</strong> {new Date(inv.settledAt).toLocaleString()}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

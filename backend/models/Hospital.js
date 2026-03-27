@@ -20,6 +20,11 @@ const Hospital = db.define(
     bank_account_name: { type: DataTypes.STRING, allowNull: true },
     bank_name: { type: DataTypes.STRING, allowNull: true },
     is_verified: { type: DataTypes.BOOLEAN, defaultValue: true },
+    verified_at: { type: DataTypes.DATE, allowNull: true },
+    verified_by_admin_id: { type: DataTypes.INTEGER, allowNull: true },
+    suspended: { type: DataTypes.BOOLEAN, defaultValue: false },
+    suspended_at: { type: DataTypes.DATE, allowNull: true },
+    suspension_reason: { type: DataTypes.TEXT, allowNull: true },
   },
   {
     tableName: 'hospitals',

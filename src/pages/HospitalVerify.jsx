@@ -13,7 +13,7 @@ export default function HospitalVerify() {
   const [rejectReason, setRejectReason] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
 
   useEffect(() => {
     if (campaignId) {
@@ -24,57 +24,57 @@ export default function HospitalVerify() {
     }
   }, [campaignId])
 
-  const handleVerify = async (e) => {
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/admin-dashboard')
+  }
+
+  const handleVerify = (e) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
 
     if (!ipdNumber.trim()) {
       setError('Patient Registration Number (IPD No) is required')
-      setLoading(false)
       return
     }
 
-    try {
-      await api.hospitalAdmin.verify(campaignId, ipdNumber.trim())
-      setSuccess(true)
-      setCampaign((prev) =>
-        prev ? { ...prev, status: 'hospital_verified', ipdNumber } : null
-      )
-    } catch (err) {
-      setError(err.message || 'Verification failed')
-    } finally {
-      setLoading(false)
-    }
+    setPendingAction('verify')
   }
 
-  const handleRequestInfo = async () => {
+  const handleRequestInfo = () => {
     setError('')
     if (!requestNote.trim()) {
       setError('Add a short note describing what needs to be updated')
       return
     }
-    setLoading(true)
-    try {
-      await api.hospitalAdmin.requestInfo(campaignId, requestNote.trim())
-      navigate('/hospital-admin')
-    } catch (err) {
-      setError(err.message || 'Request failed')
-    } finally {
-      setLoading(false)
-    }
+    setPendingAction('request_info')
   }
 
-  const handleReject = async () => {
-    if (!confirm('Reject and flag this campaign?')) return
+  const handleReject = () => {
+    setError('')
+    setPendingAction('reject')
+  }
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return
     setLoading(true)
     try {
-      await api.hospitalAdmin.reject(campaignId, rejectReason.trim() || 'Rejected by hospital')
-      navigate('/hospital-admin')
+      if (pendingAction === 'verify') {
+        await api.hospitalAdmin.verify(campaignId, ipdNumber.trim())
+      } else if (pendingAction === 'request_info') {
+        await api.hospitalAdmin.requestInfo(campaignId, requestNote.trim())
+      } else if (pendingAction === 'reject') {
+        await api.hospitalAdmin.reject(campaignId, rejectReason.trim() || 'Rejected by hospital')
+      }
+      navigate('/admin-dashboard')
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Action failed')
     } finally {
       setLoading(false)
+      setPendingAction(null)
     }
   }
 
@@ -136,6 +136,13 @@ export default function HospitalVerify() {
     <div className="verification-review">
       <div className="container">
         <div className="review-header">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleBack}
+          >
+            Back
+          </button>
           <div>
             <h1>Verification Review</h1>
             <p className="review-subtitle">
@@ -193,6 +200,32 @@ export default function HospitalVerify() {
               </div>
 
               <div className="review-actions">
+                {pendingAction && (
+                  <div className="review-form">
+                    <p>
+                      Are you sure you want to {pendingAction === 'verify' ? 'approve and activate' : pendingAction === 'request_info' ? 'request update' : 'reject'} this campaign?
+                    </p>
+                    <div className="action-buttons">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleConfirmAction}
+                        disabled={loading}
+                      >
+                        {loading ? 'Processing...' : 'Sure'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setPendingAction(null)}
+                        disabled={loading}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleVerify} className="review-form">
                   <label>Patient Registration Number (IPD No)</label>
                   <input
@@ -205,7 +238,7 @@ export default function HospitalVerify() {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={loading || success}
+                    disabled={loading}
                   >
                     {loading ? 'Approving...' : 'Approve & Activate'}
                   </button>
@@ -249,9 +282,6 @@ export default function HospitalVerify() {
               </div>
 
               {error && <p className="auth-error">{error}</p>}
-              {success && (
-                <p className="auth-success">✓ Campaign verified successfully!</p>
-              )}
             </div>
 
             <div className="card review-docs">

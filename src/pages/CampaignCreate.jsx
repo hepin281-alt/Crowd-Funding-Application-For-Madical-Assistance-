@@ -45,7 +45,24 @@ export default function CampaignCreate() {
   const [payoutMode, setPayoutMode] = useState('DIRECT_TO_HOSPITAL')
 
   useEffect(() => {
-    api.hospitals.list().then(setHospitals).catch(() => setHospitals([]))
+    let isMounted = true
+    api.hospitals.list()
+      .then((data) => {
+        if (!isMounted) return
+        const list = Array.isArray(data) ? data : []
+        setHospitals(list)
+        if (!hospitalId && !customHospital.trim() && list.length > 0) {
+          const first = list[0]
+          setHospitalId(String(first.id || first._id))
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setHospitals([])
+      })
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleUpload = async (file, setUrl, key) => {

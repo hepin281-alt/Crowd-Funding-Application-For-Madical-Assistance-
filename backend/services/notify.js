@@ -187,7 +187,50 @@ The hospital invoices have been verified and your contribution has been used for
 
 Thank you for making a difference!
     `
-  })
+  }),
+
+  donationUtilized: (donorEmail, donorName, patientName, amount, hospitalName, receiptUrl) => ({
+    to: donorEmail,
+    subject: `[CareFund] Your Donation Has Been Utilized - ₹${amount}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0d9488;">✓ Your Donation Has Been Utilized</h2>
+        <p>Dear ${donorName},</p>
+        
+        <p>We are pleased to inform you that your donation has been successfully utilized for medical treatment.</p>
+        
+        <div style="background: #f0fdfa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Patient:</strong> ${patientName}</p>
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Amount Utilized:</strong> ₹${amount.toLocaleString()}</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
+        </div>
+        
+        <p>A detailed utilization certificate with hospital invoice reference has been attached. This document can be used for tax deduction purposes under Section 80G.</p>
+        
+        <a href="${receiptUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin: 1rem 0;">
+          Download Utilization Certificate
+        </a>
+        
+        <p style="color: #0d9488; font-weight: 600;">Thank you for your compassionate support!</p>
+      </div>
+    `,
+    text: `Your Donation Has Been Utilized
+
+Dear ${donorName},
+
+We are pleased to inform you that your donation has been successfully utilized for medical treatment.
+
+Patient: ${patientName}
+Hospital: ${hospitalName}
+Amount Utilized: ₹${amount.toLocaleString()}
+Date: ${new Date().toLocaleDateString('en-IN')}
+
+A detailed utilization certificate with hospital invoice reference has been attached.
+
+Thank you for your compassionate support!
+    `
+  }),
 }
 
 // Send email based on configured service
@@ -249,4 +292,9 @@ export async function sendReceiptToDonor(donorEmail, campaignId, amount, proofUr
   // Legacy function - keeping for backward compatibility
   console.log(`[CareFund] Receipt to donor ${donorEmail}: ${amount} utilized for campaign ${campaignId}`)
   return true
+}
+
+export async function sendDonationUtilizedNotification(donorEmail, donorName, patientName, amount, hospitalName, receiptUrl) {
+  const emailData = templates.donationUtilized(donorEmail, donorName, patientName, amount, hospitalName, receiptUrl)
+  return sendEmail(emailData)
 }

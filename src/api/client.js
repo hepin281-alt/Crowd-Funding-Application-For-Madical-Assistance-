@@ -49,6 +49,52 @@ async function request(path, options = {}) {
   return data
 }
 
+function getFilenameFromDisposition(disposition, fallback = 'download.pdf') {
+  if (!disposition) return fallback
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1])
+  const asciiMatch = disposition.match(/filename="?([^";]+)"?/i)
+  if (asciiMatch?.[1]) return asciiMatch[1]
+  return fallback
+}
+
+async function downloadFile(path, fallbackFilename = 'download.pdf') {
+  const token = getToken()
+  if (!token) throw new Error('Please log in again to download this file')
+
+  let res
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (err) {
+    throw new Error(
+      'Cannot connect to server. Make sure the backend is running (npm run dev in backend folder).'
+    )
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || 'Failed to download file')
+  }
+
+  const blob = await res.blob()
+  const fileName = getFilenameFromDisposition(
+    res.headers.get('content-disposition'),
+    fallbackFilename
+  )
+
+  const objectUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(objectUrl)
+}
+
 export const api = {
   auth: {
     login: (email, password) =>
@@ -69,6 +115,16 @@ export const api = {
       }),
     resendVerification: () =>
       request('/auth/resend-verification', { method: 'POST' }),
+    forgotPassword: (email) =>
+      request('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    resetPassword: (token, password) =>
+      request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
   },
   hospitals: {
     list: () => request('/hospitals'),
@@ -99,6 +155,17 @@ export const api = {
   },
   receipts: {
     my: () => request('/receipts/my'),
+    get: (id) => request(`/receipts/${id}`),
+    downloadReceipt: (id) => `${API_URL}/receipts/${id}/download`,
+    downloadCertificate: (id) => `${API_URL}/receipts/${id}/certificate`,
+    downloadUtilization: (id) => `${API_URL}/receipts/${id}/utilization`,
+    downloadReceiptFile: (id) => downloadFile(`/receipts/${id}/download`, `donation-receipt-${id}.pdf`),
+    downloadCertificateFile: (id) => downloadFile(`/receipts/${id}/certificate`, `appreciation-certificate-${id}.pdf`),
+    downloadUtilizationFile: (id) => downloadFile(`/receipts/${id}/utilization`, `utilization-certificate-${id}.pdf`),
+    markUtilized: (id) =>
+      request(`/receipts/${id}/mark-utilized`, {
+        method: 'POST',
+      }),
   },
   invoices: {
     create: (campaignId, amount, documentUrl) =>
@@ -121,6 +188,15 @@ export const api = {
     hospitals: () => request('/employee/hospitals'),
   },
   hospitalAdmin: {
+    overview: () => request('/hospital-admin/overview'),
+    campaigns: (params = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab) q.set('tab', params.tab)
+      if (params.search) q.set('search', params.search)
+      if (params.status) q.set('status', params.status)
+      return request(`/hospital-admin/campaigns${q.toString() ? `?${q.toString()}` : ''}`)
+    },
+    financials: () => request('/hospital-admin/financials'),
     pending: () => request('/hospital-admin/pending'),
     verify: (campaignId, ipdNumber) =>
       request(`/hospital-admin/verify/${campaignId}`, {

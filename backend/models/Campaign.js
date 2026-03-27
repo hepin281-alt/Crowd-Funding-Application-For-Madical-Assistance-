@@ -49,6 +49,8 @@ const Campaign = db.define(
     verified_by_hospital_admin_id: { type: DataTypes.INTEGER, allowNull: true },
     rejection_reason: { type: DataTypes.TEXT, allowNull: true },
     hospital_admin_note: { type: DataTypes.TEXT, allowNull: true },
+    reported: { type: DataTypes.BOOLEAN, defaultValue: false },
+    report_reason: { type: DataTypes.TEXT, allowNull: true },
   },
   {
     tableName: 'campaigns',

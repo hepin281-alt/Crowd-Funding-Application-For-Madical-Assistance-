@@ -12,6 +12,10 @@ const db = new Sequelize(
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     logging: process.env.NODE_ENV === 'development' ? false : false,
+    define: {
+      underscored: true,
+      timestamps: true,
+    },
   }
 )
 

@@ -3,6 +3,22 @@ import { api } from '../api/client'
 
 const AuthContext = createContext(null)
 
+function normalizeRole(role) {
+  if (role === 'donor' || role === 'campaigner') return 'user'
+  if (role === 'employee') return 'admin'
+  return role
+}
+
+function normalizeUser(userData) {
+  const rawRole = userData?.originalRole || userData?.rawRole || userData?.role
+  return {
+    ...userData,
+    id: userData?.id || userData?._id,
+    originalRole: rawRole,
+    role: normalizeRole(rawRole),
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -17,8 +33,9 @@ export function AuthProvider({ children }) {
     api.auth
       .me()
       .then(({ user }) => {
-        setUser(user)
-        localStorage.setItem('carefund_user', JSON.stringify(user))
+        const normalizedUser = normalizeUser(user)
+        setUser(normalizedUser)
+        localStorage.setItem('carefund_user', JSON.stringify(normalizedUser))
       })
       .catch(() => {
         localStorage.removeItem('carefund_token')
@@ -28,14 +45,14 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = (userData, token) => {
-    const user = { ...userData, id: userData.id || userData._id }
+    const user = normalizeUser(userData)
     setUser(user)
     localStorage.setItem('carefund_user', JSON.stringify(user))
     localStorage.setItem('carefund_token', token)
   }
 
   const updateUser = (userData) => {
-    const user = { ...userData, id: userData.id || userData._id }
+    const user = normalizeUser(userData)
     setUser(user)
     localStorage.setItem('carefund_user', JSON.stringify(user))
   }
@@ -48,6 +65,9 @@ export function AuthProvider({ children }) {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'hospital_admin'
   const isUser = user?.role === 'user'
+  const isSuperAdmin = user?.role === 'super_admin'
+  const isDonor = user?.originalRole === 'donor' || (user?.role === 'user' && user?.originalRole !== 'campaigner')
+  const isCampaigner = user?.originalRole === 'campaigner'
   const needsVerification = !user?.is_verified
 
   return (
@@ -60,6 +80,9 @@ export function AuthProvider({ children }) {
         loading,
         isAdmin,
         isUser,
+        isSuperAdmin,
+        isDonor,
+        isCampaigner,
         needsVerification,
       }}
     >

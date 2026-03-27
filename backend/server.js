@@ -9,6 +9,9 @@ import campaignRoutes from './routes/campaigns.js'
 import donationRoutes from './routes/donations.js'
 import receiptRoutes from './routes/receipts.js'
 import uploadRoutes from './routes/uploads.js'
+import hospitalsRoutes from './routes/hospitals.js'
+import hospitalAdminRoutes from './routes/hospitalAdmin.js'
+import superAdminRoutes from './routes/superAdmin.js'
 
 dotenv.config()
 connectDB()
@@ -29,6 +32,9 @@ app.use('/api/campaigns', campaignRoutes)
 app.use('/api/donations', donationRoutes)
 app.use('/api/receipts', receiptRoutes)
 app.use('/api/uploads', uploadRoutes)
+app.use('/api/hospitals', hospitalsRoutes)
+app.use('/api/hospital-admin', hospitalAdminRoutes)
+app.use('/api/super-admin', superAdminRoutes)
 
 app.get('/', (_, res) => {
   res.json({
@@ -41,7 +47,8 @@ app.get('/', (_, res) => {
       campaigns: '/api/campaigns',
       donations: '/api/donations',
       receipts: '/api/receipts',
-      uploads: '/api/uploads'
+      uploads: '/api/uploads',
+      hospitals: '/api/hospitals'
     }
   })
 })
