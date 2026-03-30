@@ -1,6 +1,7 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
-import { User } from '../models/index.js'
+import { User, Hospital } from '../models/index.js'
+import db from '../config/database.js'
 import { protect } from '../middleware/auth.js'
 
 const router = express.Router()
@@ -21,6 +22,7 @@ function generateResetToken() {
 router.post('/signup', async (req, res) => {
   try {
     const { name, email, password, role, phone, hospitalName, licenseNumber } = req.body
+    const signupRole = role || 'user'
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' })
@@ -30,12 +32,16 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters' })
     }
 
+    if (!['user', 'hospital_admin'].includes(signupRole)) {
+      return res.status(400).json({ message: 'Invalid role selected' })
+    }
+
     // Validate role-specific fields
-    if (role === 'user') {
+    if (signupRole === 'user') {
       if (!phone) {
         return res.status(400).json({ message: 'Phone number is required for users' })
       }
-    } else if (role === 'hospital_admin') {
+    } else if (signupRole === 'hospital_admin') {
       if (!hospitalName || !licenseNumber) {
         return res.status(400).json({ message: 'Hospital name and license number are required for hospital admins' })
       }
@@ -46,20 +52,38 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' })
     }
 
-    let userData = { name, email, password, role: role || 'user', is_verified: false }
+    const user = await db.transaction(async (t) => {
+      let userData = { name, email, password, role: signupRole, is_verified: false }
 
-    if (role === 'user' && phone) {
-      userData.phone = phone
-    }
+      if (signupRole === 'user' && phone) {
+        userData.phone = phone
+      }
 
-    if (role === 'hospital_admin') {
-      userData.hospital_name = hospitalName
-      userData.license_number = licenseNumber
-      userData.hospital_phone = phone // Store hospital phone in hospital_phone field
-      userData.is_verified = false // Hospital admins start unverified
-    }
+      if (signupRole === 'hospital_admin') {
+        // Ensure onboarding requests are visible in Super Admin > Hospitals.
+        const hospital = await Hospital.create(
+          {
+            name: hospitalName,
+            license_number: licenseNumber,
+            admin_email: email,
+            contact_phone: phone || null,
+            bank_account_number: 'PENDING',
+            bank_account_name: hospitalName,
+            bank_name: 'Pending Verification',
+            is_verified: false,
+          },
+          { transaction: t }
+        )
 
-    const user = await User.create(userData)
+        userData.hospital_name = hospitalName
+        userData.license_number = licenseNumber
+        userData.hospital_phone = phone
+        userData.hospital_id = hospital.id
+        userData.is_verified = false
+      }
+
+      return User.create(userData, { transaction: t })
+    })
 
     const token = generateToken(user.id)
     const payload = {
@@ -128,8 +152,8 @@ router.post('/verify-identity', protect, async (req, res) => {
     const { code } = req.body
     const user = req.user
 
-    if (!['admin', 'hospital_admin'].includes(user.role)) {
-      return res.status(400).json({ message: 'Only admins need verification' })
+    if (user.role !== 'hospital_admin') {
+      return res.status(400).json({ message: 'Only hospital admins need verification' })
     }
 
     if (user.is_verified) {
@@ -183,8 +207,8 @@ router.post('/resend-verification', protect, async (req, res) => {
   try {
     const user = req.user
 
-    if (!['admin', 'hospital_admin'].includes(user.role)) {
-      return res.status(400).json({ message: 'Only admins need verification' })
+    if (user.role !== 'hospital_admin') {
+      return res.status(400).json({ message: 'Only hospital admins need verification' })
     }
 
     const u = await User.findByPk(user.id)

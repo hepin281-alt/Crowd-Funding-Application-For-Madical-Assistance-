@@ -4,9 +4,9 @@ import Layout from './components/Layout'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import PartnerWithUs from './pages/PartnerWithUs'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
-import VerifyIdentity from './pages/VerifyIdentity'
 import Campaigns from './pages/Campaigns'
 import DonorCampaigns from './pages/DonorCampaigns'
 import CampaignDetail from './pages/CampaignDetail'
@@ -31,9 +31,8 @@ function ProtectedRoute({ children, allowedRole }) {
 
   // Check if user has the allowed role
   let hasAllowedRole = false
-  if (allowedRole === 'admin') {
-    // Admins can be either 'admin' or 'hospital_admin'
-    hasAllowedRole = user.role === 'admin' || user.role === 'hospital_admin' || user.role === 'employee'
+  if (allowedRole === 'hospital_admin') {
+    hasAllowedRole = user.role === 'hospital_admin'
   } else if (allowedRole === 'user') {
     hasAllowedRole = user.role === 'user' || user.role === 'donor' || user.role === 'campaigner'
   } else if (allowedRole === 'super_admin') {
@@ -47,8 +46,6 @@ function ProtectedRoute({ children, allowedRole }) {
       user: '/dashboard',
       donor: '/dashboard',
       campaigner: '/dashboard',
-      admin: '/admin-dashboard',
-      employee: '/admin-dashboard',
       hospital_admin: '/admin-dashboard',
       super_admin: '/super-admin',
     }
@@ -59,23 +56,10 @@ function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/dashboard" replace />
   }
 
-  if (needsVerification && (allowedRole === 'admin' || user.role === 'hospital_admin')) {
-    // Hospital admins go to pending verification page, regular admins to verify-identity
-    if (user.role === 'hospital_admin') {
-      return <Navigate to="/admin-pending-verification" replace />
-    } else {
-      return <Navigate to="/verify-identity" replace />
-    }
+  if (needsVerification && user.role === 'hospital_admin') {
+    return <Navigate to="/admin-pending-verification" replace />
   }
   return children
-}
-
-function AdminDashboardEntry() {
-  const { user } = useAuth()
-  if (user?.role === 'hospital_admin') {
-    return <HospitalAdminDashboard />
-  }
-  return <Dashboard />
 }
 
 export default function App() {
@@ -128,9 +112,9 @@ export default function App() {
         <Route index element={<Landing />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="partner-with-us" element={<PartnerWithUs />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
         <Route path="reset-password" element={<ResetPassword />} />
-        <Route path="verify-identity" element={<VerifyIdentity />} />
         <Route path="admin-pending-verification" element={<AdminPendingVerification />} />
         <Route path="campaigns" element={<Campaigns />} />
         <Route
@@ -177,7 +161,7 @@ export default function App() {
         <Route
           path="hospital/verify/:campaignId"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRole="hospital_admin">
               <HospitalVerify />
             </ProtectedRoute>
           }
@@ -185,8 +169,8 @@ export default function App() {
         <Route
           path="admin-dashboard"
           element={
-            <ProtectedRoute allowedRole="admin">
-              <AdminDashboardEntry />
+            <ProtectedRoute allowedRole="hospital_admin">
+              <HospitalAdminDashboard />
             </ProtectedRoute>
           }
         />

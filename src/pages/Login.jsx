@@ -15,7 +15,7 @@ export default function Login() {
   if (user) {
     if (user.role === 'super_admin') {
       navigate('/super-admin', { replace: true })
-    } else if (user.role === 'admin' || user.role === 'hospital_admin' || user.role === 'employee') {
+    } else if (user.role === 'hospital_admin') {
       navigate('/admin-dashboard', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
@@ -41,7 +41,7 @@ export default function Login() {
       // Redirect based on role
       if (userData.role === 'super_admin') {
         navigate('/super-admin')
-      } else if (userData.role === 'admin' || userData.role === 'hospital_admin' || userData.role === 'employee') {
+      } else if (userData.role === 'hospital_admin') {
         navigate('/admin-dashboard')
       } else {
         navigate('/dashboard')

@@ -279,10 +279,10 @@ async function seed() {
     })
 
     const demoAdmin = await ensureUser({
-      name: 'Platform Admin Demo',
+      name: 'Super Admin Demo',
       email: 'admin2@carefund.test',
       password: 'password123',
-      role: 'admin',
+      role: 'super_admin',
       is_verified: true,
     })
 
@@ -297,7 +297,7 @@ async function seed() {
       is_verified: true,
     })
 
-    // Create admin accounts for all remaining hospitals
+    // Create hospital admin accounts for all remaining hospitals
     const hospitalAdmins = [
       { email: 'hospital3@carefund.test', hospital: hospital3 },
       { email: 'hospital4@carefund.test', hospital: hospital4 },
@@ -318,7 +318,7 @@ async function seed() {
 
     for (const adminData of hospitalAdmins) {
       await ensureUser({
-        name: `Admin - ${adminData.hospital.name}`,
+        name: `Hospital Admin - ${adminData.hospital.name}`,
         email: adminData.email,
         password: 'password123',
         role: 'hospital_admin',
@@ -460,8 +460,8 @@ async function seed() {
     console.log('- Hyderabad: KIMS')
     console.log('- Ahmedabad: Sterling')
     console.log('\n--- Test Accounts ---')
-    console.log('Platform Admin: employee@carefund.test / password123')
-    console.log('Platform Admin (Demo): admin2@carefund.test / password123')
+    console.log('Platform Operations: employee@carefund.test / password123')
+    console.log('Super Admin (Demo): admin2@carefund.test / password123')
     console.log('\n--- Hospital Admin Accounts (All 17 Hospitals) ---')
     console.log('hospital@carefund.test / password123 (City General Hospital, Mumbai)')
     console.log('hospital2@carefund.test / password123 (Care Medical Institute, Delhi)')

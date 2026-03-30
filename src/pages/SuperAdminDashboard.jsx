@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import axiosInstance from '../api/axiosInstance'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import SuperAdminLayout from '../components/SuperAdminLayout'
-import { MetricCard, SectionHeader, DataCard, Button } from '../components/SuperAdminComponents'
+import { MetricCard, SectionHeader, DataCard } from '../components/SuperAdminComponents'
 
 export default function SuperAdminDashboard() {
     const [metrics, setMetrics] = useState(null)
+    const [recentHospitalRequests, setRecentHospitalRequests] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
@@ -18,6 +19,8 @@ export default function SuperAdminDashboard() {
             setLoading(true)
             const res = await axiosInstance.get('/super-admin/metrics')
             setMetrics(res.data)
+            const requestsRes = await axiosInstance.get('/super-admin/hospitals/pending/recent?limit=5')
+            setRecentHospitalRequests(Array.isArray(requestsRes.data) ? requestsRes.data : [])
         } catch (err) {
             console.error('Fetch error:', err)
             setError(err.response?.data?.error || 'Failed to load metrics')
@@ -130,6 +133,32 @@ export default function SuperAdminDashboard() {
                                     Review & Approve →
                                 </a>
                             </div>
+                        </div>
+                    </DataCard>
+
+                    <DataCard>
+                        <div className="p-6">
+                            <h3 className="text-base font-semibold text-slate-900 mb-4">Recent Requests</h3>
+                            {recentHospitalRequests.length === 0 ? (
+                                <p className="text-sm text-slate-600">No pending hospital requests right now.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {recentHospitalRequests.map((request) => (
+                                        <div key={request.id} className="rounded border border-slate-200 px-3 py-2 bg-slate-50">
+                                            <p className="text-sm font-semibold text-slate-900">{request.name}</p>
+                                            <p className="text-xs text-slate-600 mt-1">
+                                                License: {request.license_number || '-'}
+                                            </p>
+                                            <a
+                                                href="/super-admin/hospitals"
+                                                className="text-blue-600 text-xs font-medium hover:text-blue-700 inline-block mt-2"
+                                            >
+                                                Review Now →
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </DataCard>
 

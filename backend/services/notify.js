@@ -231,6 +231,90 @@ A detailed utilization certificate with hospital invoice reference has been atta
 Thank you for your compassionate support!
     `
   }),
+
+  hospitalApplicationSubmitted: (adminEmail, hospitalName, applicationId) => ({
+    to: adminEmail,
+    subject: `[CareFund] Hospital Application Received - ${hospitalName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0d9488;">Hospital Application Received</h2>
+        <p>Thank you for applying to join CareFund as a verified hospital partner.</p>
+
+        <div style="background: #f0fdfa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Application ID:</strong> ${applicationId}</p>
+          <p><strong>Status:</strong> PENDING</p>
+        </div>
+
+        <p>Your legal and banking details are now under review by our Super Admin team.</p>
+        <p style="color: #666; font-size: 0.9rem;">You can track the application status from the Partner With Us page using your Application ID and email.</p>
+      </div>
+    `,
+    text: `Hospital Application Received
+
+Hospital: ${hospitalName}
+Application ID: ${applicationId}
+Status: PENDING
+
+Your legal and banking details are now under review by our Super Admin team.
+    `,
+  }),
+
+  hospitalApplicationApproved: (adminEmail, hospitalName, applicationId) => ({
+    to: adminEmail,
+    subject: `[CareFund] Application Approved - ${hospitalName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">Application Approved</h2>
+        <p>Your hospital application has been approved by the CareFund Super Admin team.</p>
+
+        <div style="background: #ecfdf5; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Application ID:</strong> ${applicationId}</p>
+          <p><strong>Status:</strong> APPROVED</p>
+        </div>
+
+        <p>Our team will contact you with next onboarding steps for hospital admin access.</p>
+      </div>
+    `,
+    text: `Application Approved
+
+Hospital: ${hospitalName}
+Application ID: ${applicationId}
+Status: APPROVED
+
+Our team will contact you with next onboarding steps for hospital admin access.
+    `,
+  }),
+
+  hospitalApplicationRejected: (adminEmail, hospitalName, applicationId, reason) => ({
+    to: adminEmail,
+    subject: `[CareFund] Application Update - ${hospitalName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">Application Rejected</h2>
+        <p>Your hospital application could not be approved at this time.</p>
+
+        <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Application ID:</strong> ${applicationId}</p>
+          <p><strong>Status:</strong> REJECTED</p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+        </div>
+
+        <p>You may submit a fresh application after correcting the issues noted above.</p>
+      </div>
+    `,
+    text: `Application Rejected
+
+Hospital: ${hospitalName}
+Application ID: ${applicationId}
+Status: REJECTED
+${reason ? `Reason: ${reason}` : ''}
+
+You may submit a fresh application after correcting the issues noted above.
+    `,
+  }),
 }
 
 // Send email based on configured service
@@ -296,5 +380,20 @@ export async function sendReceiptToDonor(donorEmail, campaignId, amount, proofUr
 
 export async function sendDonationUtilizedNotification(donorEmail, donorName, patientName, amount, hospitalName, receiptUrl) {
   const emailData = templates.donationUtilized(donorEmail, donorName, patientName, amount, hospitalName, receiptUrl)
+  return sendEmail(emailData)
+}
+
+export async function sendHospitalApplicationSubmitted(adminEmail, hospitalName, applicationId) {
+  const emailData = templates.hospitalApplicationSubmitted(adminEmail, hospitalName, applicationId)
+  return sendEmail(emailData)
+}
+
+export async function sendHospitalApplicationApproved(adminEmail, hospitalName, applicationId) {
+  const emailData = templates.hospitalApplicationApproved(adminEmail, hospitalName, applicationId)
+  return sendEmail(emailData)
+}
+
+export async function sendHospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason) {
+  const emailData = templates.hospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason)
   return sendEmail(emailData)
 }

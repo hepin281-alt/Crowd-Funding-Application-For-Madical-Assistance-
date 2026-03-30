@@ -4,11 +4,10 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 
 export default function Dashboard() {
-    const { user, isAdmin, isUser } = useAuth()
+    const { user, isUser } = useAuth()
     const [campaigns, setCampaigns] = useState([])
     const [donations, setDonations] = useState([])
     const [receipts, setReceipts] = useState([])
-    const [pendingVerifications, setPendingVerifications] = useState([])
     const [loading, setLoading] = useState(true)
     const [userTab, setUserTab] = useState('requests')
 
@@ -24,9 +23,6 @@ export default function Dashboard() {
                     setCampaigns(Array.isArray(c) ? c : [])
                     setDonations(Array.isArray(d) ? d : [])
                     setReceipts(Array.isArray(r) ? r : [])
-                } else if (isAdmin && user?.role === 'hospital_admin') {
-                    const pending = await api.hospitalAdmin.pending().catch(() => [])
-                    setPendingVerifications(Array.isArray(pending) ? pending : [])
                 }
             } catch (err) {
                 console.error('Dashboard error:', err)
@@ -34,7 +30,7 @@ export default function Dashboard() {
             setLoading(false)
         }
         load()
-    }, [isUser, isAdmin, user?.role])
+    }, [isUser])
 
     const totalDonated = donations.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
     const totalRaised = campaigns.reduce((sum, c) => sum + (parseFloat(c.amountRaised) || 0), 0)
@@ -322,60 +318,6 @@ export default function Dashboard() {
                             )}
                         </section>
                     )}
-                </div>
-            </div>
-        )
-    }
-
-    // Admin Dashboard
-    if (isAdmin) {
-        const isHospitalAdmin = user?.role === 'hospital_admin'
-        return (
-            <div className="dashboard admin-dashboard">
-                <div className="container">
-                    <h1>{isHospitalAdmin ? 'Hospital Admin Dashboard' : 'Admin Dashboard'}</h1>
-                    <p className="welcome-text">Welcome, {isHospitalAdmin ? 'Hospital Admin' : 'Admin'} {user?.name}!</p>
-
-                    {isHospitalAdmin && (
-                        <div className="dashboard-stats">
-                            <div className="stat-card card">
-                                <span className="stat-label">Hospital</span>
-                                <span className="stat-value">{user?.hospital_name || '—'}</span>
-                                <span className="stat-label">License: {user?.license_number || '—'}</span>
-                            </div>
-                        </div>
-                    )}
-
-                    <section className="pending-verifications">
-                        <h2>Pending User Verifications</h2>
-                        {loading ? (
-                            <p className="loading-text">Loading...</p>
-                        ) : pendingVerifications.length === 0 ? (
-                            <div className="empty-state card">
-                                <p>No pending verifications at this time.</p>
-                            </div>
-                        ) : (
-                            <div className="verification-list">
-                                {pendingVerifications.map((c) => (
-                                    <div key={c._id} className="verification-item card">
-                                        <div className="verification-header">
-                                            <h3>{c.patientName}</h3>
-                                            <span className="amount">₹{c.amountNeeded?.toLocaleString()}</span>
-                                        </div>
-                                        <p><strong>Doctor:</strong> {c.treatingDoctorName || '—'}</p>
-                                        <p><strong>Condition:</strong> {c.medicalCondition || '—'}</p>
-                                        <p><strong>Campaigner:</strong> {c.campaigner?.name} ({c.campaigner?.email})</p>
-                                        <p className="description">{c.description}</p>
-                                        <div className="action-buttons">
-                                            <Link to={`/hospital/verify/${c._id}`}>
-                                                <button className="btn btn-primary">Review & Verify</button>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
                 </div>
             </div>
         )

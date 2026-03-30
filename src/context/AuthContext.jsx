@@ -4,8 +4,8 @@ import { api } from '../api/client'
 const AuthContext = createContext(null)
 
 function normalizeRole(role) {
+  if (role === 'admin') return 'super_admin'
   if (role === 'donor' || role === 'campaigner') return 'user'
-  if (role === 'employee') return 'admin'
   return role
 }
 
@@ -63,11 +63,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('carefund_user')
   }
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'hospital_admin'
+  const isAdmin = user?.role === 'hospital_admin'
   const isUser = user?.role === 'user'
   const isSuperAdmin = user?.role === 'super_admin'
   const isDonor = user?.originalRole === 'donor' || (user?.role === 'user' && user?.originalRole !== 'campaigner')
-  const isCampaigner = user?.originalRole === 'campaigner'
+  const isCampaigner = user?.originalRole === 'campaigner' || user?.role === 'user'
   const needsVerification = !user?.is_verified
 
   return (

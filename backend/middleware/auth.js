@@ -14,6 +14,13 @@ export const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret')
     const user = await User.findByPk(decoded.id)
     if (!user) return res.status(401).json({ message: 'User not found' })
+
+    // Legacy role cleanup: convert deprecated admin role to super_admin.
+    if (user.role === 'admin') {
+      await user.update({ role: 'super_admin' })
+      user.role = 'super_admin'
+    }
+
     req.user = user
     next()
   } catch (err) {

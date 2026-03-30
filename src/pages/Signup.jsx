@@ -49,7 +49,7 @@ export default function Signup() {
 
   // Redirect to dashboard if already logged in
   if (user) {
-    if (user.role === 'admin' || user.role === 'hospital_admin') {
+    if (user.role === 'hospital_admin') {
       navigate('/admin-dashboard', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })

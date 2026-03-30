@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function AdminPendingVerification() {
     const navigate = useNavigate()
-    const { user, isAdmin } = useAuth()
+    const { user } = useAuth()
 
     useEffect(() => {
         // If user is not hospital_admin, redirect to dashboard
@@ -42,7 +42,7 @@ export default function AdminPendingVerification() {
                 <div className="pending-message">
                     <h2>Your hospital admin account is pending verification</h2>
                     <p>
-                        Thank you for registering! We have received your information and our team is reviewing your hospital details.
+                        Thank you for registering. Your details are now in the CareFund Super Admin review queue.
                     </p>
 
                     <div className="verification-checklist">
@@ -50,19 +50,19 @@ export default function AdminPendingVerification() {
                         <ul>
                             <li>
                                 <span className="check-icon">✓</span>
-                                <span>We verify your hospital license number ({user.license_number})</span>
+                                <span>CareFund Super Admin verifies your hospital license number ({user.license_number})</span>
                             </li>
                             <li>
                                 <span className="check-icon">✓</span>
-                                <span>We validate your hospital registration with authorities</span>
+                                <span>CareFund Super Admin validates your hospital registration with authorities</span>
                             </li>
                             <li>
                                 <span className="check-icon">✓</span>
-                                <span>We reach out to confirm contact information</span>
+                                <span>CareFund Super Admin may reach out to confirm contact information</span>
                             </li>
                             <li>
                                 <span className="check-icon">✓</span>
-                                <span>Once verified, you can access the admin dashboard</span>
+                                <span>Once approved, you can access the hospital admin dashboard</span>
                             </li>
                         </ul>
                     </div>
@@ -85,9 +85,6 @@ export default function AdminPendingVerification() {
                 </div>
 
                 <div className="action-buttons">
-                    <button className="btn btn-primary" onClick={() => navigate('/')}>
-                        Return to Home
-                    </button>
                     <button className="btn btn-secondary" onClick={() => navigate('/campaigns')}>
                         Browse Campaigns
                     </button>

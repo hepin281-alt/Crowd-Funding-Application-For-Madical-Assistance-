@@ -5,32 +5,33 @@ import { useAuth } from '../context/AuthContext'
 
 export default function InvoiceUpload() {
   const { campaignId } = useParams()
-  const { isCampaigner } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [amount, setAmount] = useState('')
   const [documentUrl, setDocumentUrl] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [historyLoading, setHistoryLoading] = useState(true)
-  const [historyError, setHistoryError] = useState('')
-  const [invoiceHistory, setInvoiceHistory] = useState([])
+  const [donorLoading, setDonorLoading] = useState(true)
+  const [donorError, setDonorError] = useState('')
+  const [donorContributions, setDonorContributions] = useState([])
 
   useEffect(() => {
-    const loadHistory = async () => {
-      setHistoryLoading(true)
-      setHistoryError('')
+    const loadDonorContributions = async () => {
+      setDonorLoading(true)
+      setDonorError('')
       try {
-        const list = await api.invoices.byCampaign(campaignId)
-        setInvoiceHistory(Array.isArray(list) ? list : [])
+        const list = await api.donations.byCampaign(campaignId)
+        setDonorContributions(Array.isArray(list) ? list : [])
       } catch (err) {
-        setHistoryError(err.message || 'Failed to load invoice history')
+        setDonorContributions([])
+        setDonorError(err.message || 'Failed to load donor contributions')
       } finally {
-        setHistoryLoading(false)
+        setDonorLoading(false)
       }
     }
 
     if (campaignId) {
-      loadHistory()
+      loadDonorContributions()
     }
   }, [campaignId])
 
@@ -70,8 +71,6 @@ export default function InvoiceUpload() {
 
     try {
       await api.invoices.create(campaignId, amt, documentUrl.trim())
-      const list = await api.invoices.byCampaign(campaignId)
-      setInvoiceHistory(Array.isArray(list) ? list : [])
       setAmount('')
       setDocumentUrl('')
     } catch (err) {
@@ -81,7 +80,7 @@ export default function InvoiceUpload() {
     }
   }
 
-  if (!isCampaigner) {
+  if (!user) {
     navigate('/login')
     return null
   }
@@ -131,34 +130,36 @@ export default function InvoiceUpload() {
         </form>
 
         <div style={{ marginTop: '1.5rem' }}>
-          <h2 style={{ marginBottom: '0.5rem' }}>Verification & Settlement History</h2>
+          <h2 style={{ marginBottom: '0.5rem' }}>Donor Contributions</h2>
           <p className="form-hint" style={{ marginTop: 0 }}>
-            Use this to track whether your invoice is pending, matched by employee, or settled to hospital.
+            Donor-wise contribution list with receipt and utilization status.
           </p>
 
-          {historyLoading ? (
-            <p className="form-hint">Loading history...</p>
-          ) : historyError ? (
-            <p className="auth-error">{historyError}</p>
-          ) : invoiceHistory.length === 0 ? (
-            <p className="form-hint">No invoices submitted yet for this campaign.</p>
+          {donorLoading ? (
+            <p className="form-hint">Loading donor contributions...</p>
+          ) : donorError ? (
+            <p className="auth-error">{donorError}</p>
+          ) : donorContributions.length === 0 ? (
+            <p className="form-hint">No donor contributions found for this campaign.</p>
           ) : (
             <div className="case-list">
-              {invoiceHistory.map((inv) => (
-                <div key={inv._id || inv.id} className="case-item card" style={{ marginBottom: '0.75rem' }}>
-                  <p><strong>Amount:</strong> Rs {Number(inv.amount || inv.requested_amount || 0).toLocaleString()}</p>
-                  <p><strong>Status:</strong> {statusLabel(inv.status)}</p>
+              {donorContributions.map((d) => (
+                <div key={d._id || d.id} className="case-item card" style={{ marginBottom: '0.75rem' }}>
+                  <p><strong>Donor:</strong> {d.donorName || 'Anonymous Donor'}</p>
+                  {d.donorEmailMasked ? <p><strong>Contact:</strong> {d.donorEmailMasked}</p> : null}
+                  <p><strong>Amount:</strong> ₹{Number(d.amount || 0).toLocaleString()}</p>
                   <p>
-                    <strong>Invoice:</strong>{' '}
-                    <a href={inv.documentUrl || inv.invoice_image_url} target="_blank" rel="noreferrer">
-                      Open document
-                    </a>
+                    <strong>Donated At:</strong>{' '}
+                    {d.donatedAt ? new Date(d.donatedAt).toLocaleString() : 'N/A'}
                   </p>
-                  {inv.admin_note && <p><strong>Admin Note:</strong> {inv.admin_note}</p>}
-                  {inv.payoutRef ? <p><strong>Payout Ref:</strong> {inv.payoutRef}</p> : null}
-                  {inv.settledAt ? (
-                    <p><strong>Settled At:</strong> {new Date(inv.settledAt).toLocaleString()}</p>
-                  ) : null}
+                  <p>
+                    <strong>Receipt Status:</strong>{' '}
+                    {d.receipt
+                      ? d.receipt.utilized
+                        ? 'Utilized'
+                        : 'Issued'
+                      : 'Pending'}
+                  </p>
                 </div>
               ))}
             </div>

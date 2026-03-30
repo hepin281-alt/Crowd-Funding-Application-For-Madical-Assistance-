@@ -14,11 +14,12 @@ const User = db.define(
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     password: { type: DataTypes.STRING, allowNull: false },
     role: {
-      type: DataTypes.ENUM('user', 'admin', 'hospital_admin', 'super_admin'),
+      type: DataTypes.ENUM('user', 'hospital_admin', 'super_admin'),
       allowNull: false,
       defaultValue: 'user',
     },
     phone: { type: DataTypes.STRING, allowNull: true },
+    hospital_id: { type: DataTypes.INTEGER, allowNull: true },
     hospital_name: { type: DataTypes.STRING, allowNull: true },
     license_number: { type: DataTypes.STRING, allowNull: true },
     hospital_phone: { type: DataTypes.STRING, allowNull: true },
@@ -33,6 +34,12 @@ const User = db.define(
     timestamps: true,
     underscored: true,
     hooks: {
+      beforeValidate: (user) => {
+        const mustHaveHospitalId = user.role === 'hospital_admin' && (user.isNewRecord || user.changed('role') || user.changed('hospital_id'))
+        if (mustHaveHospitalId && !user.hospital_id) {
+          throw new Error('hospital_id is required for hospital_admin users')
+        }
+      },
       beforeSave: async (user) => {
         if (user.changed('password')) {
           user.password = await bcrypt.hash(user.password, 12)

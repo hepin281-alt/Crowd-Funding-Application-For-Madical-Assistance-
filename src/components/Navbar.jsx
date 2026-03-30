@@ -14,18 +14,19 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="container navbar-inner">
-        <div className="navbar-brand">
+      <div className="navbar-shell navbar-inner">
+        <Link to="/" className="navbar-brand" aria-label="CareFund Home">
           <span className="brand-icon">❤</span> CareFund
-        </div>
+        </Link>
         <div className="navbar-links">
           {user ? (
             <>
               {isSuperAdmin && <Link to="/super-admin">Super Admin</Link>}
-              {isAdmin && !isSuperAdmin && (
-                <Link to="/admin-dashboard">
-                  {user?.role === 'hospital_admin' ? 'Hospital Admin' : 'Admin'}
-                </Link>
+              {isAdmin && !isSuperAdmin && user?.role === 'hospital_admin' && (
+                <>
+                  <Link to="/admin-dashboard?tab=profile">Hospital Overview</Link>
+                  <Link to="/admin-dashboard?tab=pending">Hospital Campaigns</Link>
+                </>
               )}
               {isUser && <Link to="/dashboard">My Dashboard</Link>}
               {isDonor && <Link to="/donor/campaigns">Browse Campaigns</Link>}

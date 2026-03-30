@@ -32,6 +32,23 @@ async function uploadRequest(path, file) {
   return data
 }
 
+async function multipartRequest(path, formData) {
+  let res
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      body: formData,
+    })
+  } catch (err) {
+    throw new Error(
+      'Cannot connect to server. Make sure the backend is running (npm run dev in backend folder).'
+    )
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Request failed')
+  return data
+}
+
 async function request(path, options = {}) {
   let res
   try {
@@ -108,11 +125,6 @@ export const api = {
         body: JSON.stringify(data),
       }),
     me: () => request('/auth/me'),
-    verifyIdentity: (code) =>
-      request('/auth/verify-identity', {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      }),
     resendVerification: () =>
       request('/auth/resend-verification', { method: 'POST' }),
     forgotPassword: (email) =>
@@ -129,6 +141,11 @@ export const api = {
   hospitals: {
     list: () => request('/hospitals'),
     get: (id) => request(`/hospitals/${id}`),
+    apply: (formData) => multipartRequest('/hospitals/apply', formData),
+    applicationStatus: (applicationId, adminEmail) =>
+      request(
+        `/hospitals/application-status?applicationId=${encodeURIComponent(applicationId)}&adminEmail=${encodeURIComponent(adminEmail)}`
+      ),
   },
   campaigns: {
     list: () => request('/campaigns'),
@@ -152,6 +169,7 @@ export const api = {
         body: JSON.stringify({ campaignId, amount }),
       }),
     my: () => request('/donations/my'),
+    byCampaign: (campaignId) => request(`/donations/campaign/${campaignId}`),
   },
   receipts: {
     my: () => request('/receipts/my'),
@@ -184,9 +202,6 @@ export const api = {
   uploads: {
     upload: (file) => uploadRequest('/uploads', file),
   },
-  employee: {
-    hospitals: () => request('/employee/hospitals'),
-  },
   hospitalAdmin: {
     overview: () => request('/hospital-admin/overview'),
     campaigns: (params = {}) => {
@@ -213,5 +228,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ note }),
       }),
+  },
+  superAdmin: {
+    campaigns: (params = {}) => {
+      const q = new URLSearchParams()
+      if (params.filter) q.set('filter', params.filter)
+      if (params.search) q.set('search', params.search)
+      if (params.sortBy) q.set('sortBy', params.sortBy)
+      if (params.order) q.set('order', params.order)
+      return request(`/super-admin/campaigns${q.toString() ? `?${q.toString()}` : ''}`)
+    },
   },
 }

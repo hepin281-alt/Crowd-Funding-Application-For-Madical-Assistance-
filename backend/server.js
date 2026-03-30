@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js'
 import campaignRoutes from './routes/campaigns.js'
 import donationRoutes from './routes/donations.js'
 import receiptRoutes from './routes/receipts.js'
+import invoiceRoutes from './routes/invoices.js'
 import uploadRoutes from './routes/uploads.js'
 import hospitalsRoutes from './routes/hospitals.js'
 import hospitalAdminRoutes from './routes/hospitalAdmin.js'
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/campaigns', campaignRoutes)
 app.use('/api/donations', donationRoutes)
 app.use('/api/receipts', receiptRoutes)
+app.use('/api/invoices', invoiceRoutes)
 app.use('/api/uploads', uploadRoutes)
 app.use('/api/hospitals', hospitalsRoutes)
 app.use('/api/hospital-admin', hospitalAdminRoutes)
@@ -47,6 +49,7 @@ app.get('/', (_, res) => {
       campaigns: '/api/campaigns',
       donations: '/api/donations',
       receipts: '/api/receipts',
+      invoices: '/api/invoices',
       uploads: '/api/uploads',
       hospitals: '/api/hospitals'
     }

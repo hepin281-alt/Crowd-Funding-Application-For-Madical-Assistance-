@@ -51,7 +51,7 @@ router.get('/:id', protect, async (req, res) => {
     if (!receipt) return res.status(404).json({ message: 'Receipt not found' })
 
     // Check authorization
-    if (receipt.donor_id !== req.user.id && req.user.role !== 'admin') {
+    if (receipt.donor_id !== req.user.id && req.user.role !== 'super_admin') {
       return res.status(403).json({ message: 'Unauthorized' })
     }
 
@@ -76,7 +76,7 @@ router.get('/:id/download', protect, async (req, res) => {
 
     if (!receipt) return res.status(404).json({ message: 'Receipt not found' })
 
-    if (receipt.donor_id !== req.user.id && req.user.role !== 'admin') {
+    if (receipt.donor_id !== req.user.id && req.user.role !== 'super_admin') {
       return res.status(403).json({ message: 'Unauthorized' })
     }
 
@@ -116,7 +116,7 @@ router.get('/:id/certificate', protect, async (req, res) => {
 
     if (!receipt) return res.status(404).json({ message: 'Receipt not found' })
 
-    if (receipt.donor_id !== req.user.id && req.user.role !== 'admin') {
+    if (receipt.donor_id !== req.user.id && req.user.role !== 'super_admin') {
       return res.status(403).json({ message: 'Unauthorized' })
     }
 
@@ -149,7 +149,7 @@ router.get('/:id/utilization', protect, async (req, res) => {
 
     if (!receipt) return res.status(404).json({ message: 'Receipt not found' })
 
-    if (receipt.donor_id !== req.user.id && req.user.role !== 'admin') {
+    if (receipt.donor_id !== req.user.id && req.user.role !== 'super_admin') {
       return res.status(403).json({ message: 'Unauthorized' })
     }
 
@@ -189,8 +189,8 @@ router.post('/:id/mark-utilized', protect, async (req, res) => {
 
     if (!receipt) return res.status(404).json({ message: 'Receipt not found' })
 
-    // Only admin can mark as utilized
-    if (req.user.role !== 'admin' && req.user.role !== 'hospital_admin') {
+    // Only super admin or hospital admin can mark as utilized
+    if (req.user.role !== 'super_admin' && req.user.role !== 'hospital_admin') {
       return res.status(403).json({ message: 'Unauthorized' })
     }
 

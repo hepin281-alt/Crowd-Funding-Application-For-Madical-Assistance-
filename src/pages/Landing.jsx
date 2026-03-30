@@ -7,8 +7,10 @@ export default function Landing() {
 
   // Redirect to dashboard if already logged in
   if (user) {
-    if (user.role === 'admin' || user.role === 'hospital_admin') {
+    if (user.role === 'hospital_admin') {
       navigate('/admin-dashboard', { replace: true })
+    } else if (user.role === 'super_admin') {
+      navigate('/super-admin', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
     }
@@ -142,17 +144,11 @@ export default function Landing() {
               <p>Create a campaign, select hospital. Hospital verifies with IPD No.</p>
               <span className="role-link">Sign up as Campaigner →</span>
             </Link>
-            <Link to="/signup?role=hospital_admin" className="role-card card">
+            <Link to="/partner-with-us" className="role-card card">
               <span className="role-icon">🏥</span>
               <h3>Hospital Admin</h3>
-              <p>Verify campaigns claiming admission at your facility.</p>
-              <span className="role-link">Sign up as Hospital Admin →</span>
-            </Link>
-            <Link to="/signup?role=employee" className="role-card card">
-              <span className="role-icon">✓</span>
-              <h3>Platform Admin</h3>
-              <p>Manage hospitals, match invoices, trigger payouts to hospitals.</p>
-              <span className="role-link">Sign up as Platform Admin →</span>
+              <p>Apply as a verified hospital partner and onboard your admin account.</p>
+              <span className="role-link">Apply to Partner With Us →</span>
             </Link>
           </div>
         </div>

@@ -7,6 +7,7 @@ import DisbursementRequest from './DisbursementRequest.js'
 import Transaction from './Transaction.js'
 import Receipt from './Receipt.js'
 import AuditLog from './AuditLog.js'
+import PlatformSetting from './PlatformSetting.js'
 
 // Associations
 User.belongsTo(Hospital, { foreignKey: 'hospital_id' })
@@ -40,4 +41,4 @@ Receipt.belongsTo(User, { foreignKey: 'donor_id', as: 'Donor' })
 AuditLog.belongsTo(User, { foreignKey: 'admin_id' })
 User.hasMany(AuditLog, { foreignKey: 'admin_id' })
 
-export { db, User, Hospital, Campaign, Donation, DisbursementRequest, Transaction, Receipt, AuditLog }
+export { db, User, Hospital, Campaign, Donation, DisbursementRequest, Transaction, Receipt, AuditLog, PlatformSetting }

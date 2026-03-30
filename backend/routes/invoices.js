@@ -16,8 +16,8 @@ const router = express.Router()
 
 const ESCROW_ACCOUNT = process.env.ESCROW_ACCOUNT || 'CAREFUND_ESCROW'
 
-// GET /api/invoices/pending - Pending disbursement requests (platform employee)
-router.get('/pending', protect, requireRole('employee'), async (req, res) => {
+// GET /api/invoices/pending - Pending disbursement requests (super admin)
+router.get('/pending', protect, requireRole('super_admin'), async (req, res) => {
   try {
     const list = await DisbursementRequest.findAll({
       where: { status: 'PENDING' },
@@ -49,7 +49,7 @@ router.get('/pending', protect, requireRole('employee'), async (req, res) => {
 })
 
 // GET /api/invoices/matched - Approved (ready for settlement)
-router.get('/matched', protect, requireRole('employee'), async (req, res) => {
+router.get('/matched', protect, requireRole('super_admin'), async (req, res) => {
   try {
     const list = await DisbursementRequest.findAll({
       where: { status: 'APPROVED' },
@@ -80,8 +80,8 @@ router.get('/matched', protect, requireRole('employee'), async (req, res) => {
   }
 })
 
-// POST /api/invoices - Create disbursement request (campaigner)
-router.post('/', protect, requireRole('campaigner'), async (req, res) => {
+// POST /api/invoices - Create disbursement request (campaign owner)
+router.post('/', protect, requireRole(['user', 'campaigner']), async (req, res) => {
   try {
     const { campaignId, amount, documentUrl } = req.body
 
@@ -133,7 +133,7 @@ router.get('/campaign/:campaignId', protect, async (req, res) => {
     const campaign = await Campaign.findByPk(req.params.campaignId)
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' })
     const isCampaigner = campaign.user_id === req.user.id
-    if (!isCampaigner && req.user.role !== 'employee') {
+    if (!isCampaigner && req.user.role !== 'super_admin') {
       return res.status(403).json({ message: 'Access denied' })
     }
     const list = await DisbursementRequest.findAll({
@@ -176,8 +176,8 @@ router.get('/campaign/:campaignId', protect, async (req, res) => {
   }
 })
 
-// POST /api/invoices/:id/match - Approve (platform employee)
-router.post('/:id/match', protect, requireRole('employee'), async (req, res) => {
+// POST /api/invoices/:id/match - Approve (super admin)
+router.post('/:id/match', protect, requireRole('super_admin'), async (req, res) => {
   try {
     const req_ = await DisbursementRequest.findByPk(req.params.id)
     if (!req_) return res.status(404).json({ message: 'Invoice not found' })
@@ -191,8 +191,8 @@ router.post('/:id/match', protect, requireRole('employee'), async (req, res) => 
   }
 })
 
-// POST /api/invoices/:id/settle - Trigger payout (platform employee)
-router.post('/:id/settle', protect, requireRole('employee'), async (req, res) => {
+// POST /api/invoices/:id/settle - Trigger payout (super admin)
+router.post('/:id/settle', protect, requireRole('super_admin'), async (req, res) => {
   try {
     const disbursement = await DisbursementRequest.findByPk(req.params.id, {
       include: [{ model: Campaign, as: 'Campaign', include: [{ model: Hospital, as: 'Hospital' }] }],

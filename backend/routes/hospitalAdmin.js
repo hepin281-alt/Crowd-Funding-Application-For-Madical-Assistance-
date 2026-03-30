@@ -91,7 +91,9 @@ router.get('/overview', async (req, res) => {
         name: hospital.name,
         city: hospital.city,
         licenseNumber: hospital.license_number,
-        verified: !!hospital.is_verified,
+        adminEmail: hospital.admin_email,
+        contactPhone: hospital.contact_phone,
+        verified: !!(hospital.is_verified || hospital.verified_at),
       },
       metrics: {
         totalVerified,

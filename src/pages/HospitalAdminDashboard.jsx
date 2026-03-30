@@ -139,150 +139,159 @@ export default function HospitalAdminDashboard() {
             )}
 
             <section className="pending-cases">
-              <div className="pending-filters" style={{ marginBottom: '1rem' }}>
-                {[
-                  { key: 'pending', label: `Pending (${overview?.metrics?.pendingRequests || 0})` },
-                  { key: 'active', label: 'Active' },
-                  { key: 'history', label: 'History' },
-                  { key: 'financials', label: 'Financials' },
-                  { key: 'profile', label: 'Hospital Profile' },
-                ].map((tab) => (
-                  <button
-                    key={tab.key}
-                    className={`btn ${activeTab === tab.key ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setTab(tab.key)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <div className="portal-sections-layout">
+                <aside className="portal-sections-sidebar card">
+                  <h3>Hospital Sections</h3>
+                  {[
+                    { key: 'profile', label: 'Overview' },
+                    { key: 'pending', label: `Campaigns (${overview?.metrics?.pendingRequests || 0})` },
+                    { key: 'active', label: 'Active Campaigns' },
+                    { key: 'history', label: 'History' },
+                    { key: 'financials', label: 'Financials' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={`portal-section-btn ${activeTab === tab.key ? 'active' : ''}`}
+                      onClick={() => setTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </aside>
 
-              <h2>{tabLabel}</h2>
+                <div className="portal-sections-content">
+                  <h2>{tabLabel}</h2>
 
-              {['pending', 'active', 'history'].includes(activeTab) && (
-                <>
-                  <div className="pending-filters">
-                    <div className="filter-item">
-                      <label>Search by Patient / Doctor / Title</label>
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="e.g. Raj Kumar or Dr. Sharma"
-                        className="form-input"
-                      />
-                    </div>
-                    <div className="filter-item">
-                      <label>Status</label>
-                      <select className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                        <option value="all">All</option>
-                        <option value="pending_hospital_verification">Pending Verification</option>
-                        <option value="hospital_verified">Verified</option>
-                        <option value="active">Active</option>
-                        <option value="needs_info">Needs Info</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </div>
-                    <button className="btn btn-secondary" onClick={refreshAll}>Refresh</button>
-                  </div>
-
-                  {loadingCampaigns ? (
-                    <p className="loading-text">Loading campaigns...</p>
-                  ) : campaigns.length === 0 ? (
-                    <div className="empty-state card">
-                      <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📋</div>
-                      <p>No campaigns found for this view.</p>
-                      <button className="btn btn-secondary" onClick={refreshAll}>Refresh</button>
-                    </div>
-                  ) : (
-                    <div className="case-list">
-                      {campaigns.map((c) => (
-                        <div key={c._id} className="case-item card">
-                          <div className="case-item-header">
-                            <h3>{c.patientName}</h3>
-                            <span className={`status-badge ${campaignStatusClass(c.status)}`}>{c.status}</span>
-                          </div>
-                          <p className="case-meta"><strong>Doctor:</strong> {c.treatingDoctorName || '—'}</p>
-                          <p className="case-meta"><strong>Condition:</strong> {c.medicalCondition || '—'}</p>
-                          <p className="case-meta"><strong>Campaigner:</strong> {c.campaigner?.name || '—'} ({c.campaigner?.email || '—'})</p>
-                          <p className="case-desc">{c.campaignTitle || c.description}</p>
-                          <p className="case-amount">
-                            ₹{(c.amountRaised || 0).toLocaleString()} / ₹{(c.amountNeeded || 0).toLocaleString()}
-                          </p>
-                          {activeTab === 'pending' ? (
-                            <Link to={`/hospital/verify/${c._id}`}>
-                              <button className="btn btn-primary">Review & Verify</button>
-                            </Link>
-                          ) : (
-                            <Link to={`/campaigns/${c._id}`}>
-                              <button className="btn btn-secondary">View Campaign</button>
-                            </Link>
-                          )}
+                  {['pending', 'active', 'history'].includes(activeTab) && (
+                    <>
+                      <div className="pending-filters">
+                        <div className="filter-item">
+                          <label>Search by Patient / Doctor / Title</label>
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="e.g. Raj Kumar or Dr. Sharma"
+                            className="form-input"
+                          />
                         </div>
-                      ))}
+                        <div className="filter-item">
+                          <label>Status</label>
+                          <select className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                            <option value="all">All</option>
+                            <option value="pending_hospital_verification">Pending Verification</option>
+                            <option value="hospital_verified">Verified</option>
+                            <option value="active">Active</option>
+                            <option value="needs_info">Needs Info</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        <button className="btn btn-secondary" onClick={refreshAll}>Refresh</button>
+                      </div>
+
+                      {loadingCampaigns ? (
+                        <p className="loading-text">Loading campaigns...</p>
+                      ) : campaigns.length === 0 ? (
+                        <div className="empty-state card">
+                          <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📋</div>
+                          <p>No campaigns found for this view.</p>
+                          <button className="btn btn-secondary" onClick={refreshAll}>Refresh</button>
+                        </div>
+                      ) : (
+                        <div className="case-list">
+                          {campaigns.map((c) => (
+                            <div key={c._id} className="case-item card">
+                              <div className="case-item-header">
+                                <h3>{c.patientName}</h3>
+                                <span className={`status-badge ${campaignStatusClass(c.status)}`}>{c.status}</span>
+                              </div>
+                              <p className="case-meta"><strong>Doctor:</strong> {c.treatingDoctorName || '—'}</p>
+                              <p className="case-meta"><strong>Condition:</strong> {c.medicalCondition || '—'}</p>
+                              <p className="case-meta"><strong>Campaigner:</strong> {c.campaigner?.name || '—'} ({c.campaigner?.email || '—'})</p>
+                              <p className="case-desc">{c.campaignTitle || c.description}</p>
+                              <p className="case-amount">
+                                ₹{(c.amountRaised || 0).toLocaleString()} / ₹{(c.amountNeeded || 0).toLocaleString()}
+                              </p>
+                              {activeTab === 'pending' ? (
+                                <Link to={`/hospital/verify/${c._id}`}>
+                                  <button className="btn btn-primary">Review & Verify</button>
+                                </Link>
+                              ) : (
+                                <Link to={`/campaigns/${c._id}`}>
+                                  <button className="btn btn-secondary">View Campaign</button>
+                                </Link>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {activeTab === 'financials' && (
+                    <div className="case-list">
+                      <div className="case-item card">
+                        <h3>Payout Summary</h3>
+                        <p className="case-meta"><strong>Pending Transfer:</strong> ₹{(financials?.totals?.pendingPayoutAmount || 0).toLocaleString()}</p>
+                        <p className="case-meta"><strong>Paid Out:</strong> ₹{(financials?.totals?.paidOutAmount || 0).toLocaleString()}</p>
+                      </div>
+
+                      <div className="case-item card">
+                        <h3>Pending Payout Queue</h3>
+                        {(financials?.pendingPayouts || []).length === 0 ? (
+                          <p className="case-desc">No pending payouts.</p>
+                        ) : (
+                          <div className="case-list">
+                            {financials.pendingPayouts.map((p) => (
+                              <div key={p._id} className="case-item">
+                                <p className="case-meta"><strong>{p.patientName || 'Campaign'}</strong> - ₹{(p.amount || 0).toLocaleString()}</p>
+                                <p className="case-date">{p.status} • {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="case-item card">
+                        <h3>Utilization Proofs</h3>
+                        {(financials?.utilizationProofs || []).length === 0 ? (
+                          <p className="case-desc">No utilization proofs yet.</p>
+                        ) : (
+                          <div className="case-list">
+                            {financials.utilizationProofs.map((u) => (
+                              <div key={u._id} className="case-item">
+                                <p className="case-meta"><strong>{u.patientName || 'Campaign'}</strong></p>
+                                {u.documentUrl ? (
+                                  <a href={u.documentUrl} target="_blank" rel="noreferrer">View Invoice / Bill</a>
+                                ) : (
+                                  <p className="case-date">No document</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                </>
-              )}
 
-              {activeTab === 'financials' && (
-                <div className="case-list">
-                  <div className="case-item card">
-                    <h3>Payout Summary</h3>
-                    <p className="case-meta"><strong>Pending Transfer:</strong> ₹{(financials?.totals?.pendingPayoutAmount || 0).toLocaleString()}</p>
-                    <p className="case-meta"><strong>Paid Out:</strong> ₹{(financials?.totals?.paidOutAmount || 0).toLocaleString()}</p>
-                  </div>
-
-                  <div className="case-item card">
-                    <h3>Pending Payout Queue</h3>
-                    {(financials?.pendingPayouts || []).length === 0 ? (
-                      <p className="case-desc">No pending payouts.</p>
-                    ) : (
-                      <div className="case-list">
-                        {financials.pendingPayouts.map((p) => (
-                          <div key={p._id} className="case-item">
-                            <p className="case-meta"><strong>{p.patientName || 'Campaign'}</strong> - ₹{(p.amount || 0).toLocaleString()}</p>
-                            <p className="case-date">{p.status} • {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</p>
-                          </div>
-                        ))}
+                  {activeTab === 'profile' && (
+                    <div className="case-list">
+                      <div className="case-item card">
+                        <h3>Hospital Verification Status</h3>
+                        <p className="case-meta"><strong>Name:</strong> {user?.name || '—'}</p>
+                        <p className="case-meta"><strong>Email:</strong> {user?.email || overview?.hospital?.adminEmail || '—'}</p>
+                        <p className="case-meta"><strong>Contact Number:</strong> {overview?.hospital?.contactPhone || user?.hospital_phone || user?.phone || '—'}</p>
+                        <p className="case-meta"><strong>Hospital:</strong> {overview?.hospital?.name || user?.hospital_name || '—'}</p>
+                        <p className="case-meta"><strong>License:</strong> {overview?.hospital?.licenseNumber || user?.license_number || '—'}</p>
+                        <p className="case-meta"><strong>City:</strong> {overview?.hospital?.city || '—'}</p>
+                        <p className="case-meta"><strong>Status:</strong> {overview?.hospital?.verified ? 'Verified' : 'Pending Verification'}</p>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="case-item card">
-                    <h3>Utilization Proofs</h3>
-                    {(financials?.utilizationProofs || []).length === 0 ? (
-                      <p className="case-desc">No utilization proofs yet.</p>
-                    ) : (
-                      <div className="case-list">
-                        {financials.utilizationProofs.map((u) => (
-                          <div key={u._id} className="case-item">
-                            <p className="case-meta"><strong>{u.patientName || 'Campaign'}</strong></p>
-                            {u.documentUrl ? (
-                              <a href={u.documentUrl} target="_blank" rel="noreferrer">View Invoice / Bill</a>
-                            ) : (
-                              <p className="case-date">No document</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {activeTab === 'profile' && (
-                <div className="case-list">
-                  <div className="case-item card">
-                    <h3>Hospital Verification Status</h3>
-                    <p className="case-meta"><strong>Hospital:</strong> {overview?.hospital?.name || user?.hospital_name || '—'}</p>
-                    <p className="case-meta"><strong>License:</strong> {overview?.hospital?.licenseNumber || user?.license_number || '—'}</p>
-                    <p className="case-meta"><strong>City:</strong> {overview?.hospital?.city || '—'}</p>
-                    <p className="case-meta"><strong>Status:</strong> {overview?.hospital?.verified ? 'Verified' : 'Pending Verification'}</p>
-                  </div>
-                </div>
-              )}
+              </div>
             </section>
           </>
         )}
