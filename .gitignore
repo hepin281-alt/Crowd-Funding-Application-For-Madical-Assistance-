@@ -49,5 +49,8 @@ coverage/
 *.temp
 .cache/
 
+# Runtime uploads
+backend/uploads/
+
 # Vite
 .vite/
