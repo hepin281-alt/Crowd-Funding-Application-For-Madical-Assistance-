@@ -54,6 +54,7 @@ DATABASE_URL=postgresql://username:password@localhost:5432/carefund
 JWT_SECRET=your-secret-key-here
 FRONTEND_URL=http://localhost:5173
 EMAIL_SERVICE=console
+SMS_SERVICE=console
 NODE_ENV=development
 ```
 
@@ -119,32 +120,36 @@ npm run dev
 - **transactions**: Payment records
 - **receipts**: Donation utilization receipts
 
-## Email Notifications
+### Email and SMS OTP Delivery
 
-The platform sends automated emails for:
+The platform sends automated notifications for:
 - Campaign verification requests to hospitals
 - Campaign approval/rejection to campaigners
 - Donation receipts to donors
 - Fund disbursement confirmations
+- OTP verification codes to users through both email and SMS using the same code
 
-### Email Configuration
+### Delivery Configuration
 
-By default, emails are logged to console. To enable real email sending:
+By default, notifications are logged to the console. To enable real delivery:
 
-1. **SMTP** (e.g., Gmail, Outlook)
-```env
-EMAIL_SERVICE=smtp
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-```
-
-2. **SendGrid**
+1. **Email via SendGrid**
 ```env
 EMAIL_SERVICE=sendgrid
 SENDGRID_API_KEY=your-api-key
+SENDGRID_FROM_EMAIL=no-reply@your-domain.com
+SENDGRID_FROM_NAME=CareFund
 ```
+
+2. **SMS via Twilio**
+```env
+SMS_SERVICE=twilio
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_FROM_NUMBER=+1234567890
+```
+
+The same OTP is stored once in the database and delivered through both channels. Users can verify with whichever delivery they saw first.
 
 ## API Endpoints
 

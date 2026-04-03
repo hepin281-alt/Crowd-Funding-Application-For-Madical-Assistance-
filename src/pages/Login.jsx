@@ -36,6 +36,7 @@ export default function Login() {
 
     try {
       const { token, user: userData } = await api.auth.login(email, password)
+
       login(userData, token)
 
       // Redirect based on role
@@ -59,6 +60,8 @@ export default function Login() {
         <h1>Login</h1>
         <p className="auth-subtitle">Sign in to your CareFund account</p>
 
+        {error && <p className="auth-error">{error}</p>}
+
         <form onSubmit={handleSubmit} className="auth-form">
           <label>Email</label>
           <input
@@ -77,8 +80,6 @@ export default function Login() {
             placeholder="••••••••"
             required
           />
-
-          {error && <p className="auth-error">{error}</p>}
 
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}

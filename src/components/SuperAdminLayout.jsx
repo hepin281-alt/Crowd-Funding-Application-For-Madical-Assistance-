@@ -10,6 +10,7 @@ export default function SuperAdminLayout({ children }) {
     const menuItems = [
         { path: '/super-admin', label: 'Overview' },
         { path: '/super-admin/hospitals', label: 'Hospitals' },
+        { path: '/super-admin/admins', label: 'Admins' },
         { path: '/super-admin/campaigns', label: 'Campaigns' },
         { path: '/super-admin/finance', label: 'Finance' },
         { path: '/super-admin/settings', label: 'Settings' },
@@ -55,7 +56,10 @@ export default function SuperAdminLayout({ children }) {
                                         key={item.path}
                                         to={item.path}
                                         label={item.label}
-                                        active={location.pathname === item.path}
+                                        active={
+                                            location.pathname === item.path ||
+                                            (item.path === '/super-admin/admins' && location.pathname.startsWith('/super-admin/admins/'))
+                                        }
                                         badgeCount={item.path === '/super-admin/hospitals' ? pendingCount : 0}
                                     />
                                 ))}

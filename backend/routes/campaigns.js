@@ -6,6 +6,20 @@ import { sendHospitalHandshake } from '../services/notify.js'
 
 const router = express.Router()
 
+async function resolveHospitalAdminEmail(hospital) {
+  if (hospital?.admin_email) {
+    return hospital.admin_email
+  }
+
+  const hospitalAdmin = await User.findOne({
+    where: { hospital_id: hospital?.id, role: 'hospital_admin' },
+    attributes: ['email'],
+    order: [['created_at', 'ASC']],
+  })
+
+  return hospitalAdmin?.email || null
+}
+
 // GET /api/campaigns/my - My campaigns (user)
 router.get('/my', protect, async (req, res) => {
   try {
@@ -183,7 +197,13 @@ router.post('/', protect, async (req, res) => {
     // Send hospital handshake only if not a draft and hospital verified
     if (!isDraft && hospitalVerified && hospitalId) {
       const hospital = await Hospital.findByPk(hospitalId)
-      await sendHospitalHandshake(hospital.admin_email, campaign.id.toString(), patientName)
+      const adminEmail = await resolveHospitalAdminEmail(hospital)
+
+      if (!adminEmail) {
+        throw new Error(`No hospital admin email found for hospital ${hospital.id}`)
+      }
+
+      await sendHospitalHandshake(adminEmail, campaign.id.toString(), patientName)
       await campaign.update({ hospital_handshake_sent_at: new Date() })
     }
 
@@ -251,7 +271,11 @@ router.patch('/:id/documents', protect, async (req, res) => {
     if (campaign.hospital_id) {
       const hospital = await Hospital.findByPk(campaign.hospital_id)
       if (hospital && hospital.is_verified) {
-        await sendHospitalHandshake(hospital.admin_email, campaign.id.toString(), campaign.patient_name)
+        const adminEmail = await resolveHospitalAdminEmail(hospital)
+
+        if (adminEmail) {
+          await sendHospitalHandshake(adminEmail, campaign.id.toString(), campaign.patient_name)
+        }
         await campaign.update({ hospital_handshake_sent_at: new Date() })
       }
     }

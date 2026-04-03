@@ -1,6 +1,7 @@
 import express from 'express'
 import { protect, requireRole } from '../middleware/auth.js'
 import { Sequelize } from 'sequelize'
+import crypto from 'crypto'
 import db from '../config/database.js'
 import { Campaign, Donation, User, Hospital, DisbursementRequest, Transaction, AuditLog, PlatformSetting } from '../models/index.js'
 import { sendHospitalApplicationApproved, sendHospitalApplicationRejected } from '../services/notify.js'
@@ -49,7 +50,7 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
             const totalHospitals = await Hospital.count({ transaction: t })
 
             const totalDonors = await User.count({
-                where: { role: 'user' },
+                where: { role: 'user', is_verified: true },
                 transaction: t,
             })
 
@@ -320,6 +321,226 @@ router.get('/hospitals/:id', allowSuperAdminOnly, async (req, res) => {
     }
 })
 
+router.get('/admins', allowSuperAdminOnly, async (req, res) => {
+    try {
+        const { search } = req.query
+        const where = { role: 'hospital_admin' }
+        const onlineWindowMs = 60 * 1000
+
+        if (search) {
+            where[Sequelize.Op.or] = [
+                { name: { [Sequelize.Op.iLike]: `%${search}%` } },
+                { email: { [Sequelize.Op.iLike]: `%${search}%` } },
+                { hospital_name: { [Sequelize.Op.iLike]: `%${search}%` } },
+                { license_number: { [Sequelize.Op.iLike]: `%${search}%` } },
+            ]
+        }
+
+        const admins = await User.findAll({
+            where,
+            include: [
+                {
+                    model: Hospital,
+                    attributes: ['id', 'name', 'license_number', 'verified_at', 'suspended', 'status'],
+                    required: false,
+                },
+            ],
+            attributes: ['id', 'name', 'email', 'phone', 'hospital_phone', 'hospital_name', 'license_number', 'hospital_id', 'is_verified', 'login_disabled', 'last_seen_at', 'created_at'],
+            order: [['created_at', 'DESC']],
+        })
+
+        res.json(
+            admins.map((admin) => {
+                const row = admin.toJSON()
+                const linkedHospital = row.Hospital || null
+                const lastSeenAt = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0
+                const onlineNow = Boolean(lastSeenAt && Date.now() - lastSeenAt <= onlineWindowMs)
+                return {
+                    ...row,
+                    online_now: onlineNow,
+                    linked_hospital: linkedHospital
+                        ? {
+                            id: linkedHospital.id,
+                            name: linkedHospital.name,
+                            license_number: linkedHospital.license_number,
+                            verified_at: linkedHospital.verified_at,
+                            suspended: linkedHospital.suspended,
+                            status: linkedHospital.status,
+                        }
+                        : null,
+                }
+            })
+        )
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+router.get('/admins/:id', allowSuperAdminOnly, async (req, res) => {
+    try {
+        const admin = await User.findOne({
+            where: {
+                id: req.params.id,
+                role: 'hospital_admin',
+            },
+            include: [
+                {
+                    model: Hospital,
+                    attributes: ['id', 'name', 'license_number', 'verified_at', 'suspended', 'status', 'city', 'created_at'],
+                    required: false,
+                },
+            ],
+            attributes: ['id', 'name', 'email', 'phone', 'hospital_phone', 'hospital_name', 'license_number', 'hospital_id', 'is_verified', 'login_disabled', 'last_seen_at', 'created_at'],
+        })
+
+        if (!admin) {
+            return res.status(404).json({ error: 'Hospital admin not found' })
+        }
+
+        const row = admin.toJSON()
+        const linkedHospital = row.Hospital || null
+        res.json({
+            ...row,
+            linked_hospital: linkedHospital
+                ? {
+                    id: linkedHospital.id,
+                    name: linkedHospital.name,
+                    license_number: linkedHospital.license_number,
+                    verified_at: linkedHospital.verified_at,
+                    suspended: linkedHospital.suspended,
+                    status: linkedHospital.status,
+                    city: linkedHospital.city,
+                    created_at: linkedHospital.created_at,
+                }
+                : null,
+        })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+router.patch('/admins/:id/verification', allowSuperAdminOnly, async (req, res) => {
+    try {
+        const { is_verified } = req.body
+
+        if (typeof is_verified !== 'boolean') {
+            return res.status(400).json({ error: 'is_verified must be boolean' })
+        }
+
+        const admin = await User.findOne({
+            where: {
+                id: req.params.id,
+                role: 'hospital_admin',
+            },
+        })
+
+        if (!admin) {
+            return res.status(404).json({ error: 'Hospital admin not found' })
+        }
+
+        admin.is_verified = is_verified
+        await admin.save()
+
+        await AuditLog.create({
+            admin_id: req.user.id,
+            action: is_verified ? 'VERIFY_HOSPITAL_ADMIN' : 'UNVERIFY_HOSPITAL_ADMIN',
+            target_id: admin.id,
+            details: {
+                admin_email: admin.email,
+                hospital_id: admin.hospital_id,
+            },
+        })
+
+        res.json({ message: 'Hospital admin verification updated', admin })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+router.patch('/admins/:id/login-access', allowSuperAdminOnly, async (req, res) => {
+    try {
+        const { login_disabled } = req.body
+
+        if (typeof login_disabled !== 'boolean') {
+            return res.status(400).json({ error: 'login_disabled must be boolean' })
+        }
+
+        const admin = await User.findOne({
+            where: {
+                id: req.params.id,
+                role: 'hospital_admin',
+            },
+        })
+
+        if (!admin) {
+            return res.status(404).json({ error: 'Hospital admin not found' })
+        }
+
+        admin.login_disabled = login_disabled
+        await admin.save()
+
+        await AuditLog.create({
+            admin_id: req.user.id,
+            action: login_disabled ? 'DISABLE_HOSPITAL_ADMIN_LOGIN' : 'ENABLE_HOSPITAL_ADMIN_LOGIN',
+            target_id: admin.id,
+            details: {
+                admin_email: admin.email,
+                hospital_id: admin.hospital_id,
+            },
+        })
+
+        res.json({ message: 'Hospital admin login access updated', admin })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+router.post('/admins/:id/password-reset', allowSuperAdminOnly, async (req, res) => {
+    try {
+        const admin = await User.findOne({
+            where: {
+                id: req.params.id,
+                role: 'hospital_admin',
+            },
+        })
+
+        if (!admin) {
+            return res.status(404).json({ error: 'Hospital admin not found' })
+        }
+
+        const resetToken = crypto.randomBytes(24).toString('hex')
+        const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000)
+
+        await admin.update({
+            reset_token: resetToken,
+            reset_token_expires_at: resetTokenExpiresAt,
+        })
+
+        await AuditLog.create({
+            admin_id: req.user.id,
+            action: 'INITIATE_HOSPITAL_ADMIN_PASSWORD_RESET',
+            target_id: admin.id,
+            details: {
+                admin_email: admin.email,
+            },
+        })
+
+        const payload = {
+            message: 'Password reset initiated',
+            expires_at: resetTokenExpiresAt,
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+            payload.resetToken = resetToken
+            payload.resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`
+        }
+
+        res.json(payload)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
 router.post('/hospitals/:id/approve', allowSuperAdminOnly, async (req, res) => {
     try {
         const hospital = await Hospital.findByPk(req.params.id)
@@ -521,6 +742,36 @@ router.post('/campaigns/:id/report', allowOpsRoles, async (req, res) => {
         })
 
         res.json({ message: 'Campaign reported', campaign })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+router.post('/campaigns/:id/abort', allowOpsRoles, async (req, res) => {
+    try {
+        const { reason } = req.body
+        const campaign = await Campaign.findByPk(req.params.id)
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' })
+        }
+
+        const abortReason = (reason || '').trim() || 'Aborted by platform admin'
+
+        campaign.status = 'rejected'
+        campaign.reported = true
+        campaign.report_reason = `ABORTED: ${abortReason}`
+        campaign.rejection_reason = abortReason
+        await campaign.save()
+
+        await AuditLog.create({
+            admin_id: req.user.id,
+            action: 'ABORT_CAMPAIGN',
+            target_id: campaign.id,
+            details: { reason: abortReason },
+        })
+
+        res.json({ message: 'Campaign aborted permanently', campaign })
     } catch (error) {
         res.status(500).json({ error: error.message })
     }

@@ -95,11 +95,24 @@ export default function HospitalAdminDashboard() {
     return 'status-badge'
   }
 
+  const resolvedHospitalName = overview?.hospital?.name || user?.hospital_name || 'Linked hospital not found'
+  const resolvedHospitalEmail = overview?.hospital?.adminEmail || user?.email || '—'
+
   return (
     <div className="dashboard hospital-admin-dashboard">
       <div className="container">
         <h1>Hospital Admin Verification Hub</h1>
         <p className="welcome-text">Welcome, {user?.name}. Review authenticity, track campaign outcomes, and monitor hospital payouts.</p>
+
+        <div className="hospital-context-banner card" style={{ marginBottom: '1.25rem' }}>
+          <div>
+            <p className="case-meta" style={{ marginBottom: '0.25rem' }}><strong>Viewing hospital:</strong> {resolvedHospitalName}</p>
+            <p className="case-meta" style={{ margin: 0 }}><strong>Admin email:</strong> {resolvedHospitalEmail}</p>
+          </div>
+          <p className="case-meta" style={{ margin: 0 }}>
+            The verification queue below is filtered to this hospital only.
+          </p>
+        </div>
 
         {loading ? (
           <p className="loading-text">Loading dashboard...</p>

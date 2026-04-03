@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -11,8 +11,6 @@ export default function CampaignCreate() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({ medicalBill: '', identityProof: '' })
-  const [showHospitalInput, setShowHospitalInput] = useState(false)
-  const [customHospital, setCustomHospital] = useState('')
   const [isDraft, setIsDraft] = useState(false)
   const [uploading, setUploading] = useState({ cover: false, bill: false, identity: false })
 
@@ -30,6 +28,7 @@ export default function CampaignCreate() {
   const [patientRelationship, setPatientRelationship] = useState('')
   const [medicalCondition, setMedicalCondition] = useState('')
   const [treatingDoctor, setTreatingDoctor] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
   const [hospitalId, setHospitalId] = useState('')
 
   // Step 3: Story & Media
@@ -51,19 +50,41 @@ export default function CampaignCreate() {
         if (!isMounted) return
         const list = Array.isArray(data) ? data : []
         setHospitals(list)
-        if (!hospitalId && !customHospital.trim() && list.length > 0) {
-          const first = list[0]
-          setHospitalId(String(first.id || first._id))
-        }
       })
       .catch(() => {
         if (!isMounted) return
         setHospitals([])
+        setError('Unable to load hospitals. Please refresh or try again in a moment.')
       })
     return () => {
       isMounted = false
     }
   }, [])
+
+  const cityOptions = useMemo(() => {
+    const uniqueCities = Array.from(
+      new Set(
+        hospitals
+          .map((h) => (h.city || '').trim())
+          .filter(Boolean)
+      )
+    )
+
+    return uniqueCities.sort((a, b) => a.localeCompare(b))
+  }, [hospitals])
+
+  const filteredHospitals = useMemo(() => {
+    if (!selectedCity) return []
+    return hospitals.filter((h) => (h.city || '').trim().toLowerCase() === selectedCity.toLowerCase())
+  }, [hospitals, selectedCity])
+
+  useEffect(() => {
+    if (!hospitalId) return
+    const existsInCity = filteredHospitals.some((h) => String(h.id || h._id) === String(hospitalId))
+    if (!existsInCity) {
+      setHospitalId('')
+    }
+  }, [filteredHospitals, hospitalId])
 
   const handleUpload = async (file, setUrl, key) => {
     if (!file) return
@@ -116,9 +137,12 @@ export default function CampaignCreate() {
       setError('Medical condition is required')
       return false
     }
-    // Check if either hospital selected or custom hospital entered
-    if (!hospitalId && !customHospital.trim()) {
-      setError('Please select or enter a hospital')
+    if (!selectedCity) {
+      setError('Please select a city')
+      return false
+    }
+    if (!hospitalId) {
+      setError('Please select a verified hospital')
       return false
     }
     setError('')
@@ -198,7 +222,6 @@ export default function CampaignCreate() {
         description,
         amountNeeded: targetAmount ? Number(targetAmount) : null,
         hospitalId: hospitalId || null,
-        customHospitalName: customHospital || null,
         deadline: deadline || null,
         coverImageUrl,
         medicalBillUrl,
@@ -243,7 +266,6 @@ export default function CampaignCreate() {
         description,
         amountNeeded: Number(targetAmount),
         hospitalId: hospitalId ? parseInt(hospitalId) : null,
-        customHospitalName: customHospital || null,
         deadline: deadline || null,
         coverImageUrl,
         medicalBillUrl,
@@ -255,8 +277,16 @@ export default function CampaignCreate() {
         isDraft: false,
       }
 
-      await api.campaigns.create(payload)
-      navigate('/dashboard')
+      const result = await api.campaigns.create(payload)
+      navigate('/dashboard', {
+        state: {
+          campaignSubmitted: true,
+          campaignId: result?._id || result?.id || null,
+          patientName,
+          hospitalName: result?.hospital?.name || null,
+          status: 'pending_hospital_verification',
+        },
+      })
     } catch (err) {
       setError(err.message || 'Failed to create campaign')
     } finally {
@@ -403,52 +433,44 @@ export default function CampaignCreate() {
 
               <div className="form-group">
                 <label>Treating Hospital / Medical Facility *</label>
-                {!showHospitalInput ? (
-                  <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>City *</label>
                     <select
-                      value={hospitalId}
+                      value={selectedCity}
                       onChange={(e) => {
-                        if (e.target.value === 'other') {
-                          setShowHospitalInput(true)
-                          setHospitalId('')
-                        } else {
-                          setHospitalId(e.target.value)
-                        }
+                        setSelectedCity(e.target.value)
+                        setHospitalId('')
                       }}
                       className="form-input"
                     >
-                      <option value="">Select a verified hospital</option>
-                      {hospitals.map((h) => (
-                        <option key={h.id || h._id} value={h.id || h._id}>
-                          {h.name} - {h.city || h.address}
+                      <option value="">Select city</option>
+                      {cityOptions.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
                         </option>
                       ))}
-                      <option value="other">Hospital not listed? Type name...</option>
                     </select>
-                    <small>We verify all hospitals on our platform</small>
-                  </>
-                ) : (
-                  <div className="hospital-input-group">
-                    <input
-                      type="text"
-                      value={customHospital}
-                      onChange={(e) => setCustomHospital(e.target.value)}
-                      placeholder="Enter hospital name (will require verification)"
-                      className="form-input"
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        setShowHospitalInput(false)
-                        setCustomHospital('')
-                      }}
-                    >
-                      Select from list
-                    </button>
-                    <small>⚠️ Note: Unverified hospitals will need verification by our team</small>
                   </div>
-                )}
+                </div>
+
+                <select
+                  value={hospitalId}
+                  disabled={!selectedCity}
+                  onChange={(e) => setHospitalId(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="">{selectedCity ? 'Select a verified hospital' : 'Select city first'}</option>
+                  {filteredHospitals.map((h) => {
+                    const location = h.city ? `${h.city}${h.state ? ', ' + h.state : ''}` : (h.address || 'Location not specified')
+                    return (
+                      <option key={h.id || h._id} value={h.id || h._id}>
+                        {h.name} ({location})
+                      </option>
+                    )
+                  })}
+                </select>
+                <small>We verify all hospitals on our platform</small>
               </div>
             </div>
           )}

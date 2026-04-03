@@ -28,11 +28,19 @@ async function seed() {
       role: 'user',
     })
 
+    const campaigner = await ensureUser({
+      name: 'Campaigner',
+      email: 'campaigner@carefund.test',
+      password: 'password123',
+      role: 'user',
+    })
+
     // Create multiple hospitals across different cities
     const hospital1 = await ensureHospital({
       name: 'City General Hospital',
       address: '123 Medical Center Dr, Andheri',
       city: 'Mumbai',
+      state: 'Maharashtra',
       license_number: 'MH-HOSP-001',
       admin_email: 'admin@citygeneral.gov.in',
       contact_phone: '+91-22-12345678',
@@ -40,13 +48,41 @@ async function seed() {
       bank_account_number: '1234567890123456',
       bank_name: 'State Bank of India',
       ifsc_swift_code: 'SBIN0001234',
+      status: 'APPROVED',
       is_verified: true,
     })
+
+    const cityGeneralAdmin = await User.findOne({ where: { email: 'admin@citygeneral.gov.in' } })
+    if (cityGeneralAdmin) {
+      await cityGeneralAdmin.update({
+        name: 'City General Hospital Admin',
+        password: 'password123',
+        role: 'hospital_admin',
+        hospital_name: hospital1.name,
+        license_number: hospital1.license_number,
+        hospital_phone: hospital1.contact_phone,
+        hospital_id: hospital1.id,
+        is_verified: true,
+      })
+    } else {
+      await User.create({
+        name: 'City General Hospital Admin',
+        email: 'admin@citygeneral.gov.in',
+        password: 'password123',
+        role: 'hospital_admin',
+        hospital_name: hospital1.name,
+        license_number: hospital1.license_number,
+        hospital_phone: hospital1.contact_phone,
+        hospital_id: hospital1.id,
+        is_verified: true,
+      })
+    }
 
     const hospital2 = await ensureHospital({
       name: 'Care Medical Institute',
       address: '456 Health Lane, Connaught Place',
       city: 'Delhi',
+      state: 'Delhi',
       license_number: 'DL-HOSP-002',
       admin_email: 'billing@caremedical.in',
       contact_phone: '+91-11-87654321',
@@ -54,6 +90,7 @@ async function seed() {
       bank_account_number: '9876543210987654',
       bank_name: 'HDFC Bank',
       ifsc_swift_code: 'HDFC0001234',
+      status: 'APPROVED',
       is_verified: true,
     })
 
@@ -61,6 +98,7 @@ async function seed() {
       name: 'Apollo Hospitals',
       address: '21 Greams Lane, Thousand Lights',
       city: 'Chennai',
+      state: 'Tamil Nadu',
       license_number: 'TN-HOSP-003',
       admin_email: 'admin@apollochennai.com',
       contact_phone: '+91-44-28293333',
@@ -68,6 +106,7 @@ async function seed() {
       bank_account_number: '5678901234567890',
       bank_name: 'ICICI Bank',
       ifsc_swift_code: 'ICIC0001234',
+      status: 'APPROVED',
       is_verified: true,
     })
 
@@ -75,6 +114,7 @@ async function seed() {
       name: 'Fortis Hospital',
       address: '154/9, Bannerghatta Road',
       city: 'Bangalore',
+      state: 'Karnataka',
       license_number: 'KA-HOSP-004',
       admin_email: 'admin@fortisbangalore.com',
       contact_phone: '+91-80-66214444',
@@ -82,6 +122,7 @@ async function seed() {
       bank_account_number: '3456789012345678',
       bank_name: 'Axis Bank',
       ifsc_swift_code: 'UTIB0001234',
+      status: 'APPROVED',
       is_verified: true,
     })
 
@@ -89,6 +130,7 @@ async function seed() {
       name: 'Manipal Hospital',
       address: '98, HAL Airport Road',
       city: 'Bangalore',
+      state: 'Karnataka',
       license_number: 'KA-HOSP-005',
       admin_email: 'admin@manipalbangalore.com',
       contact_phone: '+91-80-25023456',
@@ -96,6 +138,7 @@ async function seed() {
       bank_account_number: '7890123456789012',
       bank_name: 'Kotak Mahindra Bank',
       ifsc_swift_code: 'KKBK0001234',
+      status: 'APPROVED',
       is_verified: true,
     })
 
@@ -463,7 +506,7 @@ async function seed() {
     console.log('Platform Operations: employee@carefund.test / password123')
     console.log('Super Admin (Demo): admin2@carefund.test / password123')
     console.log('\n--- Hospital Admin Accounts (All 17 Hospitals) ---')
-    console.log('hospital@carefund.test / password123 (City General Hospital, Mumbai)')
+    console.log('admin@citygeneral.gov.in / password123 (City General Hospital, Mumbai)')
     console.log('hospital2@carefund.test / password123 (Care Medical Institute, Delhi)')
     console.log('hospital3@carefund.test / password123 (Apollo Hospitals, Chennai)')
     console.log('hospital4@carefund.test / password123 (Fortis Hospital, Bangalore)')

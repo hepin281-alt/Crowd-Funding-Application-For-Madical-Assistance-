@@ -119,12 +119,25 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
+    verifySignupOtp: (email, password, code) =>
+      request('/auth/verify-signup-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, code }),
+      }),
+    resendSignupOtp: (email, password) =>
+      request('/auth/resend-signup-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
     signup: (data) =>
       request('/auth/signup', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    signupHospitalAdmin: (formData) =>
+      multipartRequest('/auth/signup', formData),
     me: () => request('/auth/me'),
+    ping: () => request('/auth/ping', { method: 'POST' }),
     resendVerification: () =>
       request('/auth/resend-verification', { method: 'POST' }),
     forgotPassword: (email) =>

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { User } from '../models/index.js'
+import { Hospital } from '../models/index.js'
 
 export const protect = async (req, res, next) => {
   let token
@@ -15,10 +16,37 @@ export const protect = async (req, res, next) => {
     const user = await User.findByPk(decoded.id)
     if (!user) return res.status(401).json({ message: 'User not found' })
 
+    if (user.login_disabled) {
+      return res.status(403).json({ message: 'Account access disabled' })
+    }
+
     // Legacy role cleanup: convert deprecated admin role to super_admin.
     if (user.role === 'admin') {
       await user.update({ role: 'super_admin' })
       user.role = 'super_admin'
+    }
+
+    if (user.role === 'hospital_admin' && !user.hospital_id) {
+      const hospital = await Hospital.findOne({
+        where: user.email
+          ? { admin_email: user.email }
+          : user.license_number
+            ? { license_number: user.license_number }
+            : user.hospital_name
+              ? { name: user.hospital_name }
+              : null,
+      })
+
+      if (hospital) {
+        await user.update({ hospital_id: hospital.id }, { hooks: false })
+        user.hospital_id = hospital.id
+      }
+    }
+
+    const now = Date.now()
+    const lastSeenMs = user.last_seen_at ? new Date(user.last_seen_at).getTime() : 0
+    if (!lastSeenMs || now - lastSeenMs > 30000) {
+      await user.update({ last_seen_at: new Date(now) }, { hooks: false })
     }
 
     req.user = user

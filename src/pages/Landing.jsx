@@ -1,182 +1,363 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
+    const { user } = useAuth()
+    const navigate = useNavigate()
+    const [goalAmount, setGoalAmount] = useState(500000)
+    const [avgDonation, setAvgDonation] = useState(2000)
+    const [openFaq, setOpenFaq] = useState(0)
+    const [trustView, setTrustView] = useState('beneficiary')
 
-  // Redirect to dashboard if already logged in
-  if (user) {
-    if (user.role === 'hospital_admin') {
-      navigate('/admin-dashboard', { replace: true })
-    } else if (user.role === 'super_admin') {
-      navigate('/super-admin', { replace: true })
-    } else {
-      navigate('/dashboard', { replace: true })
+    if (user) {
+        if (user.role === 'hospital_admin') {
+            navigate('/admin-dashboard', { replace: true })
+        } else if (user.role === 'super_admin') {
+            navigate('/super-admin', { replace: true })
+        } else {
+            navigate('/dashboard', { replace: true })
+        }
+        return null
     }
-    return null
-  }
 
-  return (
-    <div className="landing">
-      <section className="hero">
-        <div className="container hero-content">
-          <h1>CareFund</h1>
-          <p className="hero-tagline">Medical Assistance Crowdfunding — Help those in need</p>
-          <p className="hero-desc">
-            Hospital-verified campaigns. Donations in escrow. Direct payout to hospitals.
-          </p>
-          <div className="hero-actions">
-            <Link to="/signup">
-              <button className="btn btn-primary btn-lg">Get Started</button>
-            </Link>
-            <Link to="/campaigns">
-              <button className="btn btn-secondary btn-lg">Browse Campaigns</button>
-            </Link>
-          </div>
+    const calculator = useMemo(() => {
+        const processingRate = 0.02
+        const effectiveDonation = avgDonation * (1 - processingRate)
+        const donorsNeeded = Math.max(1, Math.ceil(goalAmount / effectiveDonation))
+        const dailyDonorTarget = Math.max(8, Math.ceil(donorsNeeded / 20))
+
+        return {
+            donorsNeeded,
+            dailyDonorTarget,
+            processingEstimate: Math.round(goalAmount * processingRate),
+        }
+    }, [goalAmount, avgDonation])
+
+    const faqItems = [
+        {
+            q: 'How quickly can a campaign go live?',
+            a: 'Most campaigns are reviewed after hospital verification and can go live the same day once mandatory documents are complete.',
+        },
+        {
+            q: 'How is misuse prevented?',
+            a: 'CareFund uses hospital verification, escrow hold, invoice checks, and admin audits before releasing funds to treatment providers.',
+        },
+        {
+            q: 'Who receives the payout?',
+            a: 'By default, verified invoices are settled directly to the hospital account to keep disbursement fully traceable.',
+        },
+        {
+            q: 'Can hospitals track campaign progress?',
+            a: 'Yes. Onboarded hospital admins can monitor linked campaigns, review documents, and validate treatment milestones.',
+        },
+    ]
+
+    const rolePhotos = {
+        donor: '/role-photos/donor.jpg',
+        campaigner: '/role-photos/campaigner.jpg',
+        hospital: '/role-photos/hospital.jpg',
+    }
+
+    const trustCards = {
+        beneficiary: [
+            {
+                icon: '🎁',
+                title: 'Zero Platform Fees',
+                text: 'Only actual payment processing charges with voluntary tipping model',
+            },
+            {
+                icon: '🕒',
+                title: 'Fast Withdrawals',
+                text: 'Within 24 hours for INR and 5 working days for foreign currencies',
+            },
+            {
+                icon: '🤝',
+                title: 'Employer Matching Benefits',
+                text: 'Employers contribute towards donations by their employees doubling their impact',
+            },
+            {
+                icon: '👥',
+                title: 'Dedicated Support',
+                text: 'Personal relationship managers available via WhatsApp, call and email',
+            },
+        ],
+        donors: [
+            {
+                icon: '🔔',
+                title: 'No Spam',
+                text: 'We never call or spam you with donation requests via SMS or WhatsApp',
+            },
+            {
+                icon: '📄',
+                title: 'Full Transparency',
+                text: 'Clear breakup of funds raised, fees deducted, and transfers',
+            },
+            {
+                icon: '🛡️',
+                title: 'Data Privacy',
+                text: 'Your personal information is never shared with third parties',
+            },
+            {
+                icon: '🕘',
+                title: 'Regular Updates',
+                text: 'Frequent beneficiary and project updates via email and WhatsApp',
+            },
+        ],
+    }
+
+    return (
+        <div className="landing cf-home">
+            <section className="cf-home-hero">
+                <div className="container cf-home-hero-grid">
+                    <div className="cf-home-hero-copy cf-home-hero-copy-v2">
+                        <h1>
+                            Crowdfunding for India with <span className="cf-home-accent">Trust</span> and
+                            Transparency | CareFund
+                        </h1>
+                        <p>
+                            From personal needs and medical emergencies to NGOs,
+                            CareFund&apos;s crowdfunding platform makes it easy to raise funds in India.
+                        </p>
+                        <div className="cf-home-hero-actions">
+                            <Link to="/signup" className="cf-home-btn-primary">Start a fundraiser</Link>
+                        </div>
+                    </div>
+
+                    <div className="cf-home-hero-visual-wrap">
+                        <div className="cf-home-hero-visual-card">
+                            <div className="cf-home-hero-visual-glow" />
+                            <img
+                                src="/hero-care-illustration.svg"
+                                alt="Hospital care and patient support"
+                                className="cf-home-hero-visual-image"
+                                loading="lazy"
+                            />
+                        </div>
+                        <div className="cf-home-hero-floating-badge">
+                            <strong>0%</strong>
+                            <span>Platform Fees</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-trust">
+                <div className="container">
+                    <div className="cf-home-trust-head">
+                        <h2>
+                            Why People Trust <span className="cf-home-accent">CareFund</span>
+                        </h2>
+                        <p>Our commitment to transparency and user-first policies sets us apart</p>
+                    </div>
+
+                    <div className="cf-home-trust-tabs" role="tablist" aria-label="Trust categories">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={trustView === 'beneficiary'}
+                            className={`cf-home-trust-tab ${trustView === 'beneficiary' ? 'active' : ''}`}
+                            onClick={() => setTrustView('beneficiary')}
+                        >
+                            Beneficiary
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={trustView === 'donors'}
+                            className={`cf-home-trust-tab ${trustView === 'donors' ? 'active' : ''}`}
+                            onClick={() => setTrustView('donors')}
+                        >
+                            Donors
+                        </button>
+                    </div>
+
+                    <div className="cf-home-trust-grid">
+                        {trustCards[trustView].map((card) => (
+                            <article key={card.title} className="cf-home-trust-card">
+                                <span className="cf-home-trust-icon" aria-hidden="true">{card.icon}</span>
+                                <h3>{card.title}</h3>
+                                <p>{card.text}</p>
+                            </article>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-calculator">
+                <div className="container cf-home-calculator-wrap">
+                    <div className="cf-home-calculator-copy">
+                        <h2>Fundraiser Goal Planner</h2>
+                        <p>
+                            Estimate the donor effort required and plan your outreach with realistic daily targets.
+                            This helps families set actionable campaign goals instead of guesswork.
+                        </p>
+                    </div>
+                    <div className="cf-home-calculator-card">
+                        <label>
+                            Target amount: <strong>Rs. {goalAmount.toLocaleString('en-IN')}</strong>
+                            <input
+                                type="range"
+                                min="50000"
+                                max="5000000"
+                                step="50000"
+                                value={goalAmount}
+                                onChange={(e) => setGoalAmount(Number(e.target.value))}
+                            />
+                        </label>
+
+                        <label>
+                            Expected average donation
+                            <select value={avgDonation} onChange={(e) => setAvgDonation(Number(e.target.value))}>
+                                <option value={500}>Rs. 500</option>
+                                <option value={1000}>Rs. 1,000</option>
+                                <option value={2000}>Rs. 2,000</option>
+                                <option value={5000}>Rs. 5,000</option>
+                                <option value={10000}>Rs. 10,000</option>
+                            </select>
+                        </label>
+
+                        <div className="cf-home-calc-results">
+                            <div>
+                                <span>Estimated donors needed</span>
+                                <strong>{calculator.donorsNeeded}</strong>
+                            </div>
+                            <div>
+                                <span>Daily donor target (20 days)</span>
+                                <strong>{calculator.dailyDonorTarget}/day</strong>
+                            </div>
+                            <div>
+                                <span>Gateway + processing estimate</span>
+                                <strong>Rs. {calculator.processingEstimate.toLocaleString('en-IN')}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-process">
+                <div className="container">
+                    <h2>How CareFund Works</h2>
+                    <div className="cf-home-process-grid">
+                        <div className="step-card">
+                            <span>01</span>
+                            <h3>Create Campaign</h3>
+                            <p>Submit patient details, target amount, and treatment documents.</p>
+                        </div>
+                        <div className="step-card">
+                            <span>02</span>
+                            <h3>Hospital Validation</h3>
+                            <p>Hospital admin verifies patient admission and treatment context.</p>
+                        </div>
+                        <div className="step-card">
+                            <span>03</span>
+                            <h3>Public Funding</h3>
+                            <p>Campaign goes live for donors with verification-backed confidence.</p>
+                        </div>
+                        <div className="step-card">
+                            <span>04</span>
+                            <h3>Escrow and Audit</h3>
+                            <p>Funds are held securely until treatment invoices are approved.</p>
+                        </div>
+                        <div className="step-card">
+                            <span>05</span>
+                            <h3>Invoice Match</h3>
+                            <p>Super Admin checks uploaded bills against campaign transactions.</p>
+                        </div>
+                        <div className="step-card">
+                            <span>06</span>
+                            <h3>Direct Settlement</h3>
+                            <p>Approved amount is settled to verified hospital account records.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-roles">
+                <div className="container">
+                    <h2>Choose Your Path</h2>
+                    <div className="cf-home-role-grid">
+                        <Link to="/signup?role=donor" className="cf-home-role-card">
+                            <img
+                                src={rolePhotos.donor}
+                                alt="Donor supporting a medical fundraiser"
+                                className="cf-home-role-image"
+                                loading="lazy"
+                                onError={(e) => {
+                                    e.currentTarget.src = '/role-donor.svg'
+                                }}
+                            />
+                            <h3>Donor</h3>
+                            <p>Support verified treatment cases with transparent payout tracking.</p>
+                            <span>Join as donor</span>
+                        </Link>
+                        <Link to="/signup?role=campaigner" className="cf-home-role-card">
+                            <img
+                                src={rolePhotos.campaigner}
+                                alt="Campaigner planning outreach for a fundraiser"
+                                className="cf-home-role-image"
+                                loading="lazy"
+                                onError={(e) => {
+                                    e.currentTarget.src = '/role-campaigner.svg'
+                                }}
+                            />
+                            <h3>Campaigner</h3>
+                            <p>Raise critical funds with structured verification and clear progress.</p>
+                            <span>Start campaign setup</span>
+                        </Link>
+                        <Link to="/partner-with-us" className="cf-home-role-card">
+                            <img
+                                src={rolePhotos.hospital}
+                                alt="Hospital partner and care staff in medical setting"
+                                className="cf-home-role-image"
+                                loading="lazy"
+                                onError={(e) => {
+                                    e.currentTarget.src = '/role-hospital.svg'
+                                }}
+                            />
+                            <h3>Hospital Partner</h3>
+                            <p>Onboard your institution and authorize campaign legitimacy faster.</p>
+                            <span>Partner with CareFund</span>
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-faq">
+                <div className="container cf-home-faq-wrap">
+                    <div>
+                        <h2>Frequently Asked Questions</h2>
+                        <p>
+                            Clarity builds trust. Here are the most common questions from families,
+                            hospital partners, and donors before they start.
+                        </p>
+                    </div>
+                    <div className="cf-home-faq-list">
+                        {faqItems.map((item, idx) => (
+                            <article key={item.q} className={`cf-home-faq-item ${openFaq === idx ? 'open' : ''}`}>
+                                <button type="button" onClick={() => setOpenFaq(openFaq === idx ? -1 : idx)}>
+                                    <span>{item.q}</span>
+                                    <strong>{openFaq === idx ? '-' : '+'}</strong>
+                                </button>
+                                {openFaq === idx && <p>{item.a}</p>}
+                            </article>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <section className="cf-home-final-cta">
+                <div className="container cf-home-final-cta-wrap">
+                    <div>
+                        <h2>Ready to mobilize support for treatment?</h2>
+                        <p>Create a fundraiser in minutes and publish only after trusted verification steps are complete.</p>
+                    </div>
+                    <div className="cf-home-final-cta-actions">
+                        <Link to="/signup" className="cf-home-btn-primary">Create fundraiser</Link>
+                        <Link to="/partner-with-us" className="cf-home-btn-secondary">Hospital onboarding</Link>
+                    </div>
+                </div>
+            </section>
         </div>
-      </section>
-
-      <section className="about-section">
-        <div className="container">
-          <h2>What is CareFund?</h2>
-          <p className="section-desc">
-            CareFund is a transparent medical crowdfunding platform that connects patients in need with donors who want to help.
-            We ensure every campaign is verified by hospitals, and all donations are held in escrow until medical expenses are confirmed.
-          </p>
-          <div className="features-grid">
-            <div className="feature-item card">
-              <span className="feature-icon">🔒</span>
-              <h3>100% Secure</h3>
-              <p>All donations are held in escrow and only released to hospitals after invoice verification.</p>
-            </div>
-            <div className="feature-item card">
-              <span className="feature-icon">✓</span>
-              <h3>Hospital Verified</h3>
-              <p>Every campaign is verified by the hospital where the patient is admitted using their IPD number.</p>
-            </div>
-            <div className="feature-item card">
-              <span className="feature-icon">💰</span>
-              <h3>Direct to Hospital</h3>
-              <p>Funds are paid directly to hospitals, ensuring money is used for medical treatment only.</p>
-            </div>
-            <div className="feature-item card">
-              <span className="feature-icon">📊</span>
-              <h3>Full Transparency</h3>
-              <p>Track every donation and see exactly how funds are being utilized with invoice receipts.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="how-it-works">
-        <div className="container">
-          <h2>How It Works</h2>
-          <p className="section-desc">
-            Our platform ensures transparency and trust at every step of the fundraising process.
-          </p>
-
-          <div className="workflow">
-            <div className="workflow-step">
-              <div className="step-number">1</div>
-              <div className="step-content">
-                <h3>Create Campaign</h3>
-                <p>Patient or family member creates a campaign with medical details and selects the hospital from our verified database.</p>
-              </div>
-            </div>
-
-            <div className="workflow-step">
-              <div className="step-number">2</div>
-              <div className="step-content">
-                <h3>Hospital Verification</h3>
-                <p>Hospital admin receives notification and verifies the patient's admission using their IPD/Registration number.</p>
-              </div>
-            </div>
-
-            <div className="workflow-step">
-              <div className="step-number">3</div>
-              <div className="step-content">
-                <h3>Donations Begin</h3>
-                <p>Once verified, the campaign goes live. Donors can contribute knowing the case is legitimate and hospital-verified.</p>
-              </div>
-            </div>
-
-            <div className="workflow-step">
-              <div className="step-number">4</div>
-              <div className="step-content">
-                <h3>Funds in Escrow</h3>
-                <p>All donations are held securely in escrow until medical invoices are uploaded and verified by our team.</p>
-              </div>
-            </div>
-
-            <div className="workflow-step">
-              <div className="step-number">5</div>
-              <div className="step-content">
-                <h3>Invoice Verification</h3>
-                <p>Campaigner uploads hospital invoices. Our platform team matches invoices with donations to ensure authenticity.</p>
-              </div>
-            </div>
-
-            <div className="workflow-step">
-              <div className="step-number">6</div>
-              <div className="step-content">
-                <h3>Direct Payment</h3>
-                <p>Verified funds are paid directly to the hospital's bank account. Donors receive receipts showing fund utilization.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="roles">
-        <div className="container">
-          <h2>Who are you?</h2>
-          <div className="role-cards role-cards-grid">
-            <Link to="/signup?role=donor" className="role-card card">
-              <span className="role-icon">🤝</span>
-              <h3>I want to help</h3>
-              <p>Browse hospital-verified campaigns and donate. Funds go to escrow.</p>
-              <span className="role-link">Sign up as Donor →</span>
-            </Link>
-            <Link to="/signup?role=campaigner" className="role-card card">
-              <span className="role-icon">📋</span>
-              <h3>I need help (Campaigner)</h3>
-              <p>Create a campaign, select hospital. Hospital verifies with IPD No.</p>
-              <span className="role-link">Sign up as Campaigner →</span>
-            </Link>
-            <Link to="/partner-with-us" className="role-card card">
-              <span className="role-icon">🏥</span>
-              <h3>Hospital Admin</h3>
-              <p>Apply as a verified hospital partner and onboard your admin account.</p>
-              <span className="role-link">Apply to Partner With Us →</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="trust-section">
-        <div className="container">
-          <h2>Why Trust CareFund?</h2>
-          <div className="trust-grid">
-            <div className="trust-item">
-              <h3>🛡️ Verified Hospitals</h3>
-              <p>We only work with verified hospitals in our database. Every hospital is vetted before joining our platform.</p>
-            </div>
-            <div className="trust-item">
-              <h3>🔍 Complete Transparency</h3>
-              <p>See exactly where your money goes. Every transaction is tracked and invoices are verified before fund release.</p>
-            </div>
-            <div className="trust-item">
-              <h3>💳 Secure Payments</h3>
-              <p>Your donations are protected with bank-grade security and held in escrow until verified.</p>
-            </div>
-            <div className="trust-item">
-              <h3>📧 Regular Updates</h3>
-              <p>Donors receive updates on campaign progress and receipts when funds are utilized.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
+    )
 }

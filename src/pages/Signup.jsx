@@ -41,8 +41,13 @@ export default function Signup() {
   const [customHospitalName, setCustomHospitalName] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
   const [hospitalPhone, setHospitalPhone] = useState('')
+  const [hospitalDocument, setHospitalDocument] = useState(null)
   const [adminPassword, setAdminPassword] = useState('')
   const [adminAgreeTerms, setAdminAgreeTerms] = useState(false)
+  const [otpStep, setOtpStep] = useState(false)
+  const [signupOtp, setSignupOtp] = useState('')
+  const [signupInfoMessage, setSignupInfoMessage] = useState('')
+  const [pendingSignup, setPendingSignup] = useState({ email: '', password: '', phone: '' })
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -82,11 +87,66 @@ export default function Signup() {
 
     try {
       const body = { name, email, phone, password, role: 'user' }
-      const { token, user: userData } = await api.auth.signup(body)
+      const response = await api.auth.signup(body)
+
+      if (response.requires_verification) {
+        setOtpStep(true)
+        setSignupInfoMessage(response.message || 'A verification code has been sent to your email and phone number.')
+        setPendingSignup({ email, password, phone })
+        setError('')
+        setLoading(false)
+        return
+      }
+
+      if (response.token && response.user) {
+        login(response.user, response.token)
+        navigate('/dashboard')
+        return
+      }
+
+      navigate('/login')
+    } catch (err) {
+      setError(err.message || 'Sign up failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifySignupOtp = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    if (!signupOtp.trim()) {
+      setError('Please enter the OTP sent to your email or phone number.')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { token, user: userData } = await api.auth.verifySignupOtp(
+        pendingSignup.email,
+        pendingSignup.password,
+        signupOtp.trim()
+      )
       login(userData, token)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.message || 'Sign up failed')
+      setError(err.message || 'OTP verification failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendSignupOtp = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await api.auth.resendSignupOtp(pendingSignup.email, pendingSignup.password)
+      setSignupInfoMessage(response?.message || 'A new verification code has been sent to your email and phone number.')
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP')
     } finally {
       setLoading(false)
     }
@@ -106,6 +166,12 @@ export default function Signup() {
       return
     }
 
+    if (!hospitalDocument) {
+      setError('Please upload the medical license document.')
+      setLoading(false)
+      return
+    }
+
     if (adminPassword.length < 6) {
       setError('Password must be at least 6 characters.')
       setLoading(false)
@@ -119,16 +185,17 @@ export default function Signup() {
     }
 
     try {
-      const body = {
-        name: adminName,
-        email: hospitalEmail,
-        password: adminPassword,
-        role: 'hospital_admin',
-        hospitalName: selectedHospitalName,
-        licenseNumber,
-        phone: hospitalPhone,
-      }
-      const { token, user: userData } = await api.auth.signup(body)
+      const formData = new FormData()
+      formData.append('name', adminName)
+      formData.append('email', hospitalEmail)
+      formData.append('password', adminPassword)
+      formData.append('role', 'hospital_admin')
+      formData.append('hospitalName', selectedHospitalName)
+      formData.append('licenseNumber', licenseNumber)
+      formData.append('phone', hospitalPhone)
+      formData.append('hospitalDocument', hospitalDocument)
+
+      const { token, user: userData } = await api.auth.signupHospitalAdmin(formData)
       login(userData, token)
       // Redirect to profile/verification page for hospital admin
       navigate('/admin-pending-verification')
@@ -172,10 +239,11 @@ export default function Signup() {
           </div>
         </div>
 
+        {signupInfoMessage && <p className="auth-success">{signupInfoMessage}</p>}
         {error && <p className="auth-error">{error}</p>}
 
         {/* User Signup Form */}
-        {role === 'user' ? (
+        {role === 'user' && !otpStep ? (
           <form onSubmit={handleUserSignup} className="auth-form">
             <label>Full Name</label>
             <input
@@ -226,6 +294,49 @@ export default function Signup() {
 
             <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
               {loading ? 'Signing up...' : 'Sign Up'}
+            </button>
+          </form>
+        ) : role === 'user' && otpStep ? (
+          <form onSubmit={handleVerifySignupOtp} className="auth-form">
+            <label>Phone Number</label>
+            <input type="text" value={phone} disabled />
+
+            <label>OTP Code</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={signupOtp}
+              onChange={(e) => setSignupOtp(e.target.value)}
+              placeholder="Enter 6-digit code"
+              required
+            />
+
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+              {loading ? 'Verifying...' : 'Verify OTP'}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-full"
+              onClick={handleResendSignupOtp}
+              disabled={loading}
+              style={{ marginTop: '0.75rem' }}
+            >
+              Resend OTP
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-full"
+              onClick={() => {
+                setOtpStep(false)
+                setSignupOtp('')
+                setSignupInfoMessage('')
+              }}
+              style={{ marginTop: '0.75rem' }}
+            >
+              Back to Signup
             </button>
           </form>
         ) : (
@@ -280,6 +391,14 @@ export default function Signup() {
               value={licenseNumber}
               onChange={(e) => setLicenseNumber(e.target.value)}
               placeholder="License or registration number"
+              required
+            />
+
+            <label>Medical License Document (PDF/Image)</label>
+            <input
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/webp"
+              onChange={(e) => setHospitalDocument(e.target.files?.[0] || null)}
               required
             />
 

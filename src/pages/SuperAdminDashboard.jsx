@@ -66,18 +66,12 @@ export default function SuperAdminDashboard() {
                 {/* Financial Metrics Section */}
                 <div className="mt-8 mb-8">
                     <h2 className="text-lg font-semibold text-slate-900 mb-4">Financial Metrics</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <MetricCard
                             title="Total Amount Raised"
                             value={`₹${(financial.totalRaised || 0).toLocaleString()}`}
                             color="emerald"
                             subtext="All-time total"
-                        />
-                        <MetricCard
-                            title="Platform Fees"
-                            value={`₹${(financial.platformFees || 0).toLocaleString()}`}
-                            color="blue"
-                            subtext="2% commission revenue"
                         />
                         <MetricCard
                             title="Pending Payouts"

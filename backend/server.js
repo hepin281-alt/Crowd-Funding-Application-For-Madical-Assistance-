@@ -19,9 +19,22 @@ connectDB()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const isDev = process.env.NODE_ENV !== 'production'
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174']
-app.use(cors({ origin: allowedOrigins, credentials: true }))
+const allowedOrigins = new Set(['http://localhost:5173', 'http://localhost:5174'])
+app.use(cors({
+  origin: (origin, callback) => {
+    if (isDev) {
+      return callback(null, true)
+    }
+    // Allow non-browser tools and all localhost/dev ports.
+    if (!origin || origin.startsWith('http://localhost:') || allowedOrigins.has(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error('Not allowed by CORS'))
+  },
+  credentials: true,
+}))
 app.use(express.json())
 
 const __filename = fileURLToPath(import.meta.url)

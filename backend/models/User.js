@@ -28,6 +28,8 @@ const User = db.define(
     verification_code_expires_at: { type: DataTypes.DATE, allowNull: true },
     reset_token: { type: DataTypes.STRING, allowNull: true },
     reset_token_expires_at: { type: DataTypes.DATE, allowNull: true },
+    login_disabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+    last_seen_at: { type: DataTypes.DATE, allowNull: true },
   },
   {
     tableName: 'users',

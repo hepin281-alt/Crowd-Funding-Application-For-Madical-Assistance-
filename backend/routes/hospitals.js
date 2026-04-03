@@ -3,7 +3,6 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
-import { Op } from 'sequelize'
 import { Hospital } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
 import { sendHospitalApplicationSubmitted } from '../services/notify.js'
@@ -50,8 +49,7 @@ router.get('/', async (req, res) => {
   try {
     const hospitals = await Hospital.findAll({
       where: {
-        is_verified: true,
-        [Op.or]: [{ status: 'APPROVED' }, { status: null }],
+        status: 'APPROVED',
       },
       attributes: ['id', 'name', 'address', 'city', 'admin_email', 'contact_phone'],
       raw: true,

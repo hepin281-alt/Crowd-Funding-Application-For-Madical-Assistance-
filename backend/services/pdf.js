@@ -29,16 +29,17 @@ export function generateReceiptPDF(donationData) {
             doc.moveDown()
 
             // Receipt details box
-            doc.rect(0, doc.y, doc.page.width - 100, 80).stroke('#0d9488')
-            doc.fontSize(11).fillColor('#0d9488').font('Helvetica-Bold').text('Receipt Details', 20, doc.y + 5)
+            const boxY = doc.y
+            doc.rect(0, boxY, doc.page.width, 100).stroke('#0d9488')
+            doc.fontSize(11).fillColor('#0d9488').font('Helvetica-Bold').text('Receipt Details', 20, boxY + 8)
             doc.fontSize(10).fillColor('#000').font('Helvetica')
 
-            const detailsY = doc.y + 5
+            const detailsY = boxY + 28
             doc.text(`Receipt No: ${donationData.receiptNumber}`, 20, detailsY)
-            doc.text(`Date: ${new Date(donationData.receiptDate).toLocaleDateString('en-IN')}`, 20, detailsY + 18)
-            doc.text(`Amount: ₹${parseFloat(donationData.amount).toLocaleString('en-IN')}`, 20, detailsY + 36)
-            doc.text(`Campaign: ${donationData.campaignName}`, 20, detailsY + 54)
-            doc.moveDown(6)
+            doc.text(`Date: ${new Date(donationData.receiptDate).toLocaleDateString('en-IN')}`, 20, detailsY + 16)
+            doc.text(`Amount: ₹${parseFloat(donationData.amount).toLocaleString('en-IN')}`, 20, detailsY + 32)
+            doc.text(`Campaign: ${donationData.campaignName}`, 20, detailsY + 48)
+            doc.moveDown(7)
 
             // Donor information
             doc.fontSize(11).font('Helvetica-Bold').text('DONOR INFORMATION', { underline: true })

@@ -15,6 +15,11 @@ async function resolveHospitalForAdmin(user) {
     if (byId) return byId
   }
 
+  if (user.email) {
+    const byAdminEmail = await Hospital.findOne({ where: { admin_email: user.email } })
+    if (byAdminEmail) return byAdminEmail
+  }
+
   if (user.license_number) {
     const byLicense = await Hospital.findOne({ where: { license_number: user.license_number } })
     if (byLicense) return byLicense

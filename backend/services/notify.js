@@ -1,13 +1,122 @@
+import https from 'https'
+import nodemailer from 'nodemailer'
+
 /**
  * Notification service - sends emails/notifications
- * Configure email service via environment variables:
- * - EMAIL_SERVICE: 'console' (default), 'smtp', 'sendgrid'
- * - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (for SMTP)
- * - SENDGRID_API_KEY (for SendGrid)
+ * Configure delivery via environment variables:
+ * - EMAIL_SERVICE: 'console' (default), 'smtp', or 'sendgrid'
+ * - SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS (for SMTP/Gmail)
+ * - SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME
+ * - SMS_SERVICE: 'console' (default) or 'twilio'
+ * - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID
  */
 
 const EMAIL_SERVICE = process.env.EMAIL_SERVICE || 'console'
+const SMS_SERVICE = process.env.SMS_SERVICE || 'console'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+const EMAIL_FROM = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_FROM || 'no-reply@carefund.local'
+const EMAIL_FROM_NAME = process.env.SENDGRID_FROM_NAME || process.env.EMAIL_FROM_NAME || 'CareFund'
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
+const SMTP_SECURE = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true'
+const SMTP_USER = process.env.SMTP_USER || ''
+const SMTP_PASS = process.env.SMTP_PASS || ''
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || ''
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || ''
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
+const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || ''
+const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID || ''
+let smtpTransporter = null
+
+function getSmtpTransporter() {
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    })
+  }
+  return smtpTransporter
+}
+
+function requestHttpsJson(urlString, { method = 'POST', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString)
+    const request = https.request(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: `${url.pathname}${url.search}`,
+        method,
+        headers,
+      },
+      (response) => {
+        const chunks = []
+
+        response.on('data', (chunk) => chunks.push(chunk))
+        response.on('end', () => {
+          resolve({
+            statusCode: response.statusCode || 0,
+            body: Buffer.concat(chunks).toString('utf8'),
+          })
+        })
+      }
+    )
+
+    request.on('error', reject)
+
+    if (body) {
+      request.write(body)
+    }
+
+    request.end()
+  })
+}
+
+function normalizePhoneNumber(phone) {
+  if (!phone) return null
+  const trimmed = String(phone).trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('+')) return trimmed
+
+  const digits = trimmed.replace(/\D/g, '')
+  if (!digits) return null
+
+  return `+${digits}`
+}
+
+function buildVerificationEmail(email, recipientName, verificationCode, purpose = 'verification') {
+  const subject = `[CareFund] Your ${purpose} code`
+  const greeting = recipientName ? `Dear ${recipientName},` : 'Hello,'
+
+  return {
+    to: email,
+    subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0d9488;">Your CareFund verification code</h2>
+        <p>${greeting}</p>
+        <p>Use the same code below to verify your account through either email or SMS.</p>
+        <div style="background: #f0fdfa; padding: 1.25rem; border-radius: 10px; text-align: center; font-size: 1.8rem; letter-spacing: 0.35em; font-weight: 700; color: #115e59;">
+          ${verificationCode}
+        </div>
+        <p style="margin-top: 1rem;">This code expires in 10 minutes.</p>
+        <p style="color: #666; font-size: 0.9rem;">If you did not request this code, you can safely ignore this message.</p>
+      </div>
+    `,
+    text: `${greeting}\n\nUse the same code below to verify your account through either email or SMS:\n\n${verificationCode}\n\nThis code expires in 10 minutes.\nIf you did not request this code, you can safely ignore this message.`,
+  }
+}
+
+function buildVerificationSms(recipientName, verificationCode, purpose = 'verification') {
+  const prefix = recipientName ? `${recipientName}, ` : ''
+  return `${prefix}your CareFund ${purpose} code is ${verificationCode}. Use the same code from email or SMS. It expires in 10 minutes.`
+}
 
 // Email templates
 const templates = {
@@ -329,15 +438,116 @@ async function sendEmail(emailData) {
     return true
   }
 
-  // TODO: Implement actual email sending
-  // if (EMAIL_SERVICE === 'smtp') {
-  //   // Use nodemailer with SMTP
-  // }
-  // if (EMAIL_SERVICE === 'sendgrid') {
-  //   // Use SendGrid API
-  // }
+  if (EMAIL_SERVICE === 'sendgrid') {
+    if (!SENDGRID_API_KEY) {
+      console.warn('SENDGRID_API_KEY is missing. Email not sent.')
+      return false
+    }
+
+    const response = await requestHttpsJson('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: emailData.to }] }],
+        from: {
+          email: EMAIL_FROM,
+          name: EMAIL_FROM_NAME,
+        },
+        subject: emailData.subject,
+        content: [
+          ...(emailData.text ? [{ type: 'text/plain', value: emailData.text }] : []),
+          ...(emailData.html ? [{ type: 'text/html', value: emailData.html }] : []),
+        ],
+      }),
+    })
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return true
+    }
+
+    throw new Error(`SendGrid request failed with status ${response.statusCode}: ${response.body}`)
+  }
+
+  if (EMAIL_SERVICE === 'smtp') {
+    if (!SMTP_USER || !SMTP_PASS) {
+      console.warn('SMTP_USER or SMTP_PASS is missing. Email not sent.')
+      return false
+    }
+
+    const transporter = getSmtpTransporter()
+    await transporter.sendMail({
+      from: `${EMAIL_FROM_NAME} <${EMAIL_FROM}>`,
+      to: emailData.to,
+      subject: emailData.subject,
+      text: emailData.text,
+      html: emailData.html,
+    })
+
+    return true
+  }
 
   console.warn(`Email service '${EMAIL_SERVICE}' not implemented. Email not sent.`)
+  return false
+}
+
+async function sendSms(phoneNumber, message) {
+  if (SMS_SERVICE === 'console') {
+    console.log('\n========== SMS NOTIFICATION ==========')
+    console.log(`To: ${phoneNumber}`)
+    console.log(message)
+    console.log('======================================\n')
+    return true
+  }
+
+  if (SMS_SERVICE === 'twilio') {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
+      console.warn('TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN is missing. SMS not sent.')
+      return false
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phoneNumber)
+    if (!normalizedPhone) {
+      console.warn('Invalid phone number supplied for SMS delivery.')
+      return false
+    }
+
+    const formData = new URLSearchParams({
+      To: normalizedPhone,
+      Body: message,
+    })
+
+    if (TWILIO_MESSAGING_SERVICE_SID) {
+      formData.set('MessagingServiceSid', TWILIO_MESSAGING_SERVICE_SID)
+    } else if (TWILIO_FROM_NUMBER) {
+      formData.set('From', TWILIO_FROM_NUMBER)
+    } else {
+      console.warn('TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID is missing. SMS not sent.')
+      return false
+    }
+
+    const response = await requestHttpsJson(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      }
+    )
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return true
+    }
+
+    throw new Error(`Twilio request failed with status ${response.statusCode}: ${response.body}`)
+  }
+
+  console.warn(`SMS service '${SMS_SERVICE}' not implemented. SMS not sent.`)
   return false
 }
 
@@ -396,4 +606,22 @@ export async function sendHospitalApplicationApproved(adminEmail, hospitalName, 
 export async function sendHospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason) {
   const emailData = templates.hospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason)
   return sendEmail(emailData)
+}
+
+export async function sendVerificationCodeToUser({ email, phone, recipientName, verificationCode, purpose = 'verification' }) {
+  const emailPromise = email ? sendEmail(buildVerificationEmail(email, recipientName, verificationCode, purpose)) : Promise.resolve(false)
+  const smsPromise = phone ? sendSms(phone, buildVerificationSms(recipientName, verificationCode, purpose)) : Promise.resolve(false)
+
+  const [emailResult, smsResult] = await Promise.allSettled([emailPromise, smsPromise])
+
+  const emailSent = emailResult.status === 'fulfilled' ? emailResult.value : false
+  const smsSent = smsResult.status === 'fulfilled' ? smsResult.value : false
+
+  if (!emailSent && !smsSent) {
+    const emailError = emailResult.status === 'rejected' ? emailResult.reason?.message : null
+    const smsError = smsResult.status === 'rejected' ? smsResult.reason?.message : null
+    throw new Error(emailError || smsError || 'Unable to send verification code by email or SMS')
+  }
+
+  return { emailSent, smsSent }
 }

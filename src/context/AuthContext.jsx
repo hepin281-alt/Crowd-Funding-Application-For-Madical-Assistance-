@@ -44,6 +44,21 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    if (!user) return
+
+    const ping = () => {
+      api.auth.ping().catch(() => {
+        // Ignore heartbeat failures; normal auth flow handles invalid sessions.
+      })
+    }
+
+    ping()
+    const timer = setInterval(ping, 30000)
+
+    return () => clearInterval(timer)
+  }, [user])
+
   const login = (userData, token) => {
     const user = normalizeUser(userData)
     setUser(user)

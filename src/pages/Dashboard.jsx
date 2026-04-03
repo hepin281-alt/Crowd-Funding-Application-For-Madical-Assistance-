@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 
 export default function Dashboard() {
     const { user, isUser } = useAuth()
+    const location = useLocation()
     const [campaigns, setCampaigns] = useState([])
     const [donations, setDonations] = useState([])
     const [receipts, setReceipts] = useState([])
     const [loading, setLoading] = useState(true)
     const [userTab, setUserTab] = useState('requests')
+    const campaignSubmitted = location.state?.campaignSubmitted
+    const submittedCampaignName = location.state?.patientName
+    const submittedHospitalName = location.state?.hospitalName
 
     useEffect(() => {
         const load = async () => {
@@ -88,6 +92,18 @@ export default function Dashboard() {
                     <h1>CareFund User Dashboard</h1>
                     <p className="welcome-text">Welcome, {user?.name}. Track your help requests and contributions in one place.</p>
 
+                    {campaignSubmitted && (
+                        <div className="card" style={{ marginTop: '1rem', marginBottom: '1.5rem', borderLeft: '4px solid #0d9488' }}>
+                            <h2>Campaign submitted for verification</h2>
+                            <p>
+                                {submittedCampaignName ? `${submittedCampaignName} is ` : 'Your campaign is '}
+                                now waiting for hospital verification.
+                                {submittedHospitalName ? ` The request has been sent to ${submittedHospitalName}.` : ''}
+                            </p>
+                            <p className="case-meta">Status: Awaiting Hospital Verification</p>
+                        </div>
+                    )}
+
                     <div className="user-tabs card">
                         <button
                             type="button"
@@ -124,7 +140,7 @@ export default function Dashboard() {
                         <section className="campaigns-section">
                             <div className="section-header">
                                 <h2>Campaigner View</h2>
-                                <Link to="/campaigner/create">
+                                <Link to="/create">
                                     <button className="btn btn-primary">Create New Request</button>
                                 </Link>
                             </div>
@@ -134,7 +150,7 @@ export default function Dashboard() {
                             ) : campaigns.length === 0 ? (
                                 <div className="empty-state card">
                                     <p>You have not created a help request yet.</p>
-                                    <Link to="/campaigner/create">
+                                    <Link to="/create">
                                         <button className="btn btn-primary">Create Campaign</button>
                                     </Link>
                                 </div>

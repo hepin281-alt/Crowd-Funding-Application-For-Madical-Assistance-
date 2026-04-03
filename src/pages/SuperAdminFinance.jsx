@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import axiosInstance from '../api/axiosInstance'
 import SuperAdminLayout from '../components/SuperAdminLayout'
 import { SectionHeader, DataCard, StatusBadge } from '../components/SuperAdminComponents'
@@ -9,50 +9,94 @@ export default function SuperAdminFinance() {
     const [activeTab, setActiveTab] = useState('payouts')
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
-    const [statusFilter, setStatusFilter] = useState('all')
     const [pagination, setPagination] = useState({ page: 1, limit: 50, pages: 1 })
+    const [selectedPayout, setSelectedPayout] = useState(null)
+    const [showPayoutModal, setShowPayoutModal] = useState(false)
+    const [actionLoading, setActionLoading] = useState(false)
 
     useEffect(() => {
         fetchData()
-    }, [activeTab, statusFilter, pagination.page])
+    }, [activeTab, pagination.page])
 
     const fetchData = async () => {
         try {
             setLoading(true)
+            setError(null)
+
             if (activeTab === 'payouts') {
                 const response = await axiosInstance.get('/super-admin/payouts/queue')
                 setPayoutQueue(response.data)
             } else {
-                const params = {
-                    page: pagination.page,
-                    limit: pagination.limit,
-                    status: statusFilter !== 'all' ? statusFilter : undefined,
-                }
+                const params = { page: pagination.page, limit: pagination.limit }
                 const response = await axiosInstance.get('/super-admin/transactions', { params })
-                setTransactions(response.data.transactions)
-                setPagination(response.data.pagination)
+                setTransactions(response.data.transactions || [])
+                setPagination(response.data.pagination || { page: 1, limit: 50, pages: 1 })
             }
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to load data')
+            setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load data')
         } finally {
             setLoading(false)
         }
     }
 
     const getTotalPayouts = () => {
-        return payoutQueue.reduce((sum, payout) => sum + parseFloat(payout.requested_amount || 0), 0)
+        return payoutQueue.reduce((sum, payout) => sum + Number(payout.requested_amount || 0), 0)
     }
 
     const getTotalTransactions = () => {
-        return transactions.reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0)
+        return transactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0)
     }
 
     const getStatusColor = (status) => {
-        if (status === 'succeeded') return 'emerald'
-        if (status === 'pending') return 'amber'
-        if (status === 'failed') return 'red'
-        if (status === 'refunded') return 'blue'
+        if (status === 'PAID' || status === 'succeeded') return 'emerald'
+        if (status === 'PENDING' || status === 'pending') return 'amber'
+        if (status === 'REJECTED' || status === 'failed') return 'red'
+        if (status === 'APPROVED') return 'blue'
         return 'slate'
+    }
+
+    const openPayoutDetails = (payout) => {
+        setSelectedPayout(payout)
+        setShowPayoutModal(true)
+    }
+
+    const closePayoutDetails = () => {
+        setShowPayoutModal(false)
+        setSelectedPayout(null)
+    }
+
+    const approvePayout = async () => {
+        if (!selectedPayout) return
+
+        try {
+            setActionLoading(true)
+            setError(null)
+            await axiosInstance.post(`/invoices/${selectedPayout.id}/match`)
+            await fetchData()
+            closePayoutDetails()
+        } catch (err) {
+            setError(err.response?.data?.message || err.response?.data?.error || 'Failed to approve payout')
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const approveAndSettlePayout = async () => {
+        if (!selectedPayout) return
+
+        try {
+            setActionLoading(true)
+            setError(null)
+            await axiosInstance.post(`/invoices/${selectedPayout.id}/match`)
+            await axiosInstance.post(`/invoices/${selectedPayout.id}/settle`)
+            await fetchData()
+            closePayoutDetails()
+            setActiveTab('transactions')
+        } catch (err) {
+            setError(err.response?.data?.message || err.response?.data?.error || 'Failed to settle payout')
+        } finally {
+            setActionLoading(false)
+        }
     }
 
     if (loading) {
@@ -71,13 +115,11 @@ export default function SuperAdminFinance() {
     return (
         <SuperAdminLayout>
             <div className="super-admin-page super-admin-finance-page p-6 xl:p-8 max-w-7xl mx-auto">
-                {/* Page Header */}
                 <SectionHeader
                     title="Finance & Payouts"
                     description="Monitor transactions and manage disbursements"
                 />
 
-                {/* Tabs */}
                 <div className="super-admin-switch-tabs-wrap mb-8">
                     <div className="super-admin-switch-tabs">
                         <button
@@ -101,10 +143,8 @@ export default function SuperAdminFinance() {
                     </div>
                 )}
 
-                {/* Payout Queue Tab */}
                 {activeTab === 'payouts' && (
                     <div>
-                        {/* Summary Card */}
                         <DataCard>
                             <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-8 rounded-lg border border-amber-100 super-admin-payout-summary">
                                 <p className="text-amber-700 text-sm font-semibold uppercase tracking-wider">Total Pending Payouts</p>
@@ -113,7 +153,6 @@ export default function SuperAdminFinance() {
                             </div>
                         </DataCard>
 
-                        {/* Payouts Table */}
                         <div className="mt-8">
                             {payoutQueue.length === 0 ? (
                                 <DataCard>
@@ -140,16 +179,22 @@ export default function SuperAdminFinance() {
                                                 {payoutQueue.map((payout) => (
                                                     <tr key={payout.id} className="border-b border-slate-200 hover:bg-slate-50 transition">
                                                         <td className="px-6 py-4">
-                                                            <div className="font-medium text-slate-900">{payout.Campaign?.patient_name}</div>
-                                                            <div className="text-xs text-slate-600">{payout.Campaign?.campaign_title}</div>
+                                                            <div className="font-medium text-slate-900">{payout.Campaign?.patient_name || 'Unknown'}</div>
+                                                            <div className="text-xs text-slate-600">{payout.Campaign?.campaign_title || '-'}</div>
                                                         </td>
-                                                        <td className="px-6 py-4 text-sm text-slate-900">{payout.Campaign?.Hospital?.name}</td>
-                                                        <td className="px-6 py-4 font-bold text-slate-900">₹{parseFloat(payout.requested_amount).toLocaleString()}</td>
+                                                        <td className="px-6 py-4 text-sm text-slate-900">{payout.Campaign?.Hospital?.name || '-'}</td>
+                                                        <td className="px-6 py-4 font-bold text-slate-900">₹{Number(payout.requested_amount || 0).toLocaleString()}</td>
                                                         <td className="px-6 py-4">
                                                             <StatusBadge status="amber" label={payout.status} />
                                                         </td>
                                                         <td className="px-6 py-4 text-sm">
-                                                            <button className="text-blue-600 hover:text-blue-700 font-medium">Details</button>
+                                                            <button
+                                                                className="text-blue-600 hover:text-blue-700 font-medium"
+                                                                onClick={() => openPayoutDetails(payout)}
+                                                                type="button"
+                                                            >
+                                                                Details
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -162,36 +207,17 @@ export default function SuperAdminFinance() {
                     </div>
                 )}
 
-                {/* Transaction Ledger Tab */}
                 {activeTab === 'transactions' && (
                     <div>
-                        {/* Filters */}
                         <DataCard>
                             <div className="p-6 border-b border-slate-200 super-admin-filters-panel">
                                 <h3 className="text-sm font-semibold text-slate-900 mb-4">Filters</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-700 mb-2">Status</label>
-                                        <select
-                                            value={statusFilter}
-                                            onChange={(e) => {
-                                                setStatusFilter(e.target.value)
-                                                setPagination({ ...pagination, page: 1 })
-                                            }}
-                                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        >
-                                            <option value="all">All Transactions</option>
-                                            <option value="succeeded">Succeeded</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="failed">Failed</option>
-                                            <option value="refunded">Refunded</option>
-                                        </select>
-                                    </div>
-
                                     <div className="flex items-end">
                                         <button
                                             onClick={fetchData}
                                             className="w-full px-4 py-2 text-sm bg-slate-200 text-slate-900 rounded-md hover:bg-slate-300 transition font-medium"
+                                            type="button"
                                         >
                                             Refresh
                                         </button>
@@ -200,7 +226,6 @@ export default function SuperAdminFinance() {
                             </div>
                         </DataCard>
 
-                        {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 mb-8">
                             <DataCard>
                                 <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
@@ -224,7 +249,6 @@ export default function SuperAdminFinance() {
                             </DataCard>
                         </div>
 
-                        {/* Transactions Table */}
                         {transactions.length === 0 ? (
                             <DataCard>
                                 <div className="p-12 text-center">
@@ -248,21 +272,18 @@ export default function SuperAdminFinance() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {transactions.map((tx) => (
-                                                    <tr key={tx.id} className="border-b border-slate-200 hover:bg-slate-50 transition">
-                                                        <td className="px-6 py-4 font-mono text-xs text-slate-600">{tx.id}</td>
-                                                        <td className="px-6 py-4 text-sm text-slate-900">
-                                                            {tx.DisbursementRequest?.Campaign?.patient_name}
-                                                        </td>
-                                                        <td className="px-6 py-4 font-bold text-slate-900">
-                                                            ₹{parseFloat(tx.amount).toLocaleString()}
-                                                        </td>
+                                                {transactions.map((transaction) => (
+                                                    <tr key={transaction.id} className="border-b border-slate-200 hover:bg-slate-50 transition">
+                                                        <td className="px-6 py-4 font-mono text-xs text-slate-600">{transaction.id}</td>
+                                                        <td className="px-6 py-4 text-sm text-slate-900">{transaction.DisbursementRequest?.Campaign?.patient_name || '-'}</td>
+                                                        <td className="px-6 py-4 font-bold text-slate-900">₹{Number(transaction.amount || 0).toLocaleString()}</td>
                                                         <td className="px-6 py-4">
-                                                            <StatusBadge status={getStatusColor(tx.status)} label={tx.status} />
+                                                            <StatusBadge
+                                                                status={getStatusColor(transaction.DisbursementRequest?.status || 'PAID')}
+                                                                label={transaction.DisbursementRequest?.status || 'PAID'}
+                                                            />
                                                         </td>
-                                                        <td className="px-6 py-4 text-sm text-slate-600">
-                                                            {new Date(tx.createdAt).toLocaleDateString()}
-                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-slate-600">{new Date(transaction.createdAt).toLocaleDateString()}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -270,12 +291,12 @@ export default function SuperAdminFinance() {
                                     </div>
                                 </DataCard>
 
-                                {/* Pagination */}
                                 <div className="mt-6 flex justify-center items-center gap-2">
                                     <button
                                         onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
                                         disabled={pagination.page === 1}
                                         className="px-4 py-2 text-sm bg-slate-200 text-slate-900 rounded-md hover:bg-slate-300 disabled:opacity-50 transition super-admin-pagination-btn"
+                                        type="button"
                                     >
                                         Previous
                                     </button>
@@ -286,12 +307,68 @@ export default function SuperAdminFinance() {
                                         onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages || 1, pagination.page + 1) })}
                                         disabled={pagination.page === (pagination.pages || 1)}
                                         className="px-4 py-2 text-sm bg-slate-200 text-slate-900 rounded-md hover:bg-slate-300 disabled:opacity-50 transition super-admin-pagination-btn"
+                                        type="button"
                                     >
                                         Next
                                     </button>
                                 </div>
                             </>
                         )}
+                    </div>
+                )}
+
+                {showPayoutModal && selectedPayout && (
+                    <div className="fixed inset-0 bg-black/60 z-50 p-4 flex items-center justify-center">
+                        <div className="w-full max-w-xl bg-white rounded-lg shadow-xl border border-slate-200">
+                            <div className="p-6">
+                                <div className="flex items-start justify-between">
+                                    <h3 className="text-xl font-bold text-slate-900">Payout Request Details</h3>
+                                    <button
+                                        onClick={closePayoutDetails}
+                                        className="text-slate-500 hover:text-slate-700 text-xl"
+                                        type="button"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className="mt-4 space-y-2 text-sm text-slate-700">
+                                    <p><span className="font-semibold">Request ID:</span> {selectedPayout.id}</p>
+                                    <p><span className="font-semibold">Campaign:</span> {selectedPayout.Campaign?.campaign_title || '-'}</p>
+                                    <p><span className="font-semibold">Patient:</span> {selectedPayout.Campaign?.patient_name || '-'}</p>
+                                    <p><span className="font-semibold">Hospital:</span> {selectedPayout.Campaign?.Hospital?.name || '-'}</p>
+                                    <p><span className="font-semibold">Amount:</span> ₹{Number(selectedPayout.requested_amount || 0).toLocaleString()}</p>
+                                    <p><span className="font-semibold">Status:</span> {selectedPayout.status}</p>
+                                </div>
+
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={approvePayout}
+                                        disabled={actionLoading}
+                                        className="px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60"
+                                    >
+                                        {actionLoading ? 'Processing...' : 'Approve'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={approveAndSettlePayout}
+                                        disabled={actionLoading}
+                                        className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                                    >
+                                        {actionLoading ? 'Processing...' : 'Approve & Pay Now'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={closePayoutDetails}
+                                        disabled={actionLoading}
+                                        className="px-4 py-2 rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

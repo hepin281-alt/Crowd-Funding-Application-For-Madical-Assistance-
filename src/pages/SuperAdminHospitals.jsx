@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import axiosInstance from '../api/axiosInstance'
 import SuperAdminLayout from '../components/SuperAdminLayout'
 import HospitalVerificationView from '../components/HospitalVerificationView'
@@ -6,6 +7,7 @@ import { SectionHeader, DataCard, StatusBadge } from '../components/SuperAdminCo
 
 export default function SuperAdminHospitals() {
     const PAGE_SIZE = 10
+    const [searchParams, setSearchParams] = useSearchParams()
     const [hospitals, setHospitals] = useState([])
     const [filteredHospitals, setFilteredHospitals] = useState([])
     const [loading, setLoading] = useState(true)
@@ -15,7 +17,8 @@ export default function SuperAdminHospitals() {
     const [currentPage, setCurrentPage] = useState(1)
     const [selectedHospital, setSelectedHospital] = useState(null)
     const [showModal, setShowModal] = useState(false)
-    const [actionInProgress, setActionInProgress] = useState(null)
+
+    const selectedHospitalId = Number(searchParams.get('hospitalId') || 0)
 
     useEffect(() => {
         fetchHospitals()
@@ -39,6 +42,10 @@ export default function SuperAdminHospitals() {
 
     const filterHospitals = () => {
         let filtered = hospitals
+
+        if (selectedHospitalId) {
+            filtered = filtered.filter((h) => h.id === selectedHospitalId)
+        }
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter((h) => {
@@ -68,24 +75,6 @@ export default function SuperAdminHospitals() {
             month: 'short',
             day: '2-digit',
         })
-    }
-
-    const approveHospital = async (hospitalId) => {
-        try {
-            setActionInProgress(hospitalId)
-            await axiosInstance.post(`/super-admin/hospitals/${hospitalId}/approve`)
-            setHospitals(
-                hospitals.map((h) =>
-                    h.id === hospitalId ? { ...h, verified_at: new Date().toISOString() } : h
-                )
-            )
-            setShowModal(false)
-            alert('Hospital approved successfully!')
-        } catch (err) {
-            alert('Error approving hospital: ' + (err.response?.data?.error || err.message))
-        } finally {
-            setActionInProgress(null)
-        }
     }
 
     const getStatusType = (hospital) => {
@@ -137,6 +126,22 @@ export default function SuperAdminHospitals() {
                 <DataCard>
                     <div className="p-6 border-b border-slate-200 super-admin-filters-panel">
                         <h3 className="text-sm font-semibold text-slate-900 mb-4">Filters & Search</h3>
+                        {selectedHospitalId > 0 && (
+                            <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                                <span>Showing pre-filtered hospital: ID #{selectedHospitalId}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const next = new URLSearchParams(searchParams)
+                                        next.delete('hospitalId')
+                                        setSearchParams(next)
+                                    }}
+                                    className="ml-auto rounded border border-blue-300 bg-white px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100"
+                                >
+                                    Clear pre-filter
+                                </button>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 mb-2">Status</label>
@@ -205,24 +210,20 @@ export default function SuperAdminHospitals() {
                             <div className="overflow-x-auto super-admin-table-scroll">
                                 <table className="admin-table super-admin-hospitals-table">
                                     <colgroup>
-                                        <col style={{ width: '19%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '19%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '9%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '9%' }} />
-                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '24%' }} />
+                                        <col style={{ width: '14%' }} />
+                                        <col style={{ width: '18%' }} />
+                                        <col style={{ width: '14%' }} />
+                                        <col style={{ width: '16%' }} />
+                                        <col style={{ width: '14%' }} />
                                     </colgroup>
                                     <thead>
                                         <tr className="border-b border-slate-200">
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Hospital</th>
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">License</th>
-                                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Admin</th>
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Requested On</th>
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Active Campaigns</th>
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Quick</th>
                                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Action</th>
                                         </tr>
                                     </thead>
@@ -243,11 +244,7 @@ export default function SuperAdminHospitals() {
                                                     ) : null}
                                                 </td>
                                                 <td className="px-6 py-3 text-sm text-slate-600 align-middle truncate" title={hospital.license_number || '-'}>{hospital.license_number || '-'}</td>
-                                                <td className="px-6 py-3 align-middle">
-                                                    <div className="text-sm text-slate-900 truncate" title={hospital.admin?.name || '-'}>{hospital.admin?.name || '-'}</div>
-                                                    <div className="text-xs text-slate-600 truncate" title={hospital.admin?.email || '-'}>{hospital.admin?.email || '-'}</div>
-                                                </td>
-                                                <td className="px-6 py-3 text-sm text-slate-600 align-middle">{formatDate(hospital.created_at)}</td>
+                                                <td className="px-6 py-3 text-sm text-slate-600 align-middle">{formatDate(hospital.created_at || hospital.createdAt)}</td>
                                                 <td className="px-6 py-3 align-middle">
                                                     <span className="inline-flex min-w-8 justify-center rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                                                         {hospital.active_campaign_count || 0}
@@ -258,32 +255,6 @@ export default function SuperAdminHospitals() {
                                                         hospital.suspended ? 'Suspended' :
                                                             hospital.verified_at ? 'Active' : 'Pending'
                                                     } />
-                                                </td>
-                                                <td className="px-6 py-3 align-middle">
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedHospital(hospital)
-                                                                setShowModal(true)
-                                                            }}
-                                                            className="h-8 w-8 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                                            title="View Docs"
-                                                            aria-label="View Docs"
-                                                        >
-                                                            👁
-                                                        </button>
-                                                        {!hospital.verified_at && !hospital.suspended && (
-                                                            <button
-                                                                onClick={() => approveHospital(hospital.id)}
-                                                                disabled={actionInProgress === hospital.id}
-                                                                className="h-8 w-8 rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-                                                                title="Quick Approve"
-                                                                aria-label="Quick Approve"
-                                                            >
-                                                                {actionInProgress === hospital.id ? '…' : '✓'}
-                                                            </button>
-                                                        )}
-                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-3 align-middle">
                                                     <button
@@ -333,8 +304,15 @@ export default function SuperAdminHospitals() {
                         <div className="super-admin-verification-modal h-[92vh] w-[min(1400px,96vw)] mx-auto bg-slate-100 rounded-xl shadow-2xl overflow-hidden flex flex-col">
                             <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
                                 <div>
-                                    <h2 className="text-xl font-bold text-slate-900">Verification Review: {selectedHospital.name}</h2>
-                                    <p className="text-sm text-slate-600">License #{selectedHospital.license_number} • {selectedHospital.city}</p>
+                                    <h2 className="text-xl font-bold text-slate-900">
+                                        {selectedHospital.verified_at && !selectedHospital.suspended
+                                            ? `Hospital Profile: ${selectedHospital.name}`
+                                            : `Verification Review: ${selectedHospital.name}`}
+                                    </h2>
+                                    <p className="text-sm text-slate-600">
+                                        License #{selectedHospital.license_number} • {selectedHospital.city}
+                                        {selectedHospital.verified_at && !selectedHospital.suspended ? ' • Already approved' : ''}
+                                    </p>
                                 </div>
                                 <button
                                     onClick={() => {

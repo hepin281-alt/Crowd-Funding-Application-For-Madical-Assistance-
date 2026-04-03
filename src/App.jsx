@@ -19,6 +19,8 @@ import HospitalVerify from './pages/HospitalVerify'
 import AdminPendingVerification from './pages/AdminPendingVerification'
 import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import SuperAdminHospitals from './pages/SuperAdminHospitals'
+import SuperAdminAdmins from './pages/SuperAdminAdmins'
+import SuperAdminAdminDetail from './pages/SuperAdminAdminDetail'
 import SuperAdminCampaigns from './pages/SuperAdminCampaigns'
 import SuperAdminFinance from './pages/SuperAdminFinance'
 import SuperAdminSettings from './pages/SuperAdminSettings'
@@ -79,6 +81,22 @@ export default function App() {
         element={
           <ProtectedRoute allowedRole="super_admin">
             <SuperAdminHospitals />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="super-admin/admins"
+        element={
+          <ProtectedRoute allowedRole="super_admin">
+            <SuperAdminAdmins />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="super-admin/admins/:adminId"
+        element={
+          <ProtectedRoute allowedRole="super_admin">
+            <SuperAdminAdminDetail />
           </ProtectedRoute>
         }
       />
