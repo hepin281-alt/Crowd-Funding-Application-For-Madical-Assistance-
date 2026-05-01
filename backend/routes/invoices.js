@@ -8,9 +8,14 @@ import {
   Transaction,
   Receipt,
   User,
+  AuditLog,
 } from '../models/index.js'
 import { protect, requireRole } from '../middleware/auth.js'
-import { sendReceiptToDonor } from '../services/notify.js'
+import {
+  sendReceiptToDonor,
+  sendPayoutRequestApproved,
+  sendPayoutRequestSettled,
+} from '../services/notify.js'
 
 const router = express.Router()
 
@@ -179,12 +184,50 @@ router.get('/campaign/:campaignId', protect, async (req, res) => {
 // POST /api/invoices/:id/match - Approve (super admin)
 router.post('/:id/match', protect, requireRole('super_admin'), async (req, res) => {
   try {
-    const req_ = await DisbursementRequest.findByPk(req.params.id)
+    const req_ = await DisbursementRequest.findByPk(req.params.id, {
+      include: [
+        {
+          model: Campaign,
+          as: 'Campaign',
+          include: [
+            { model: Hospital, as: 'Hospital' },
+            { model: User, as: 'user', attributes: ['id', 'name', 'email'] },
+          ],
+        },
+      ],
+    })
     if (!req_) return res.status(404).json({ message: 'Invoice not found' })
     if (req_.status !== 'PENDING') {
       return res.status(400).json({ message: 'Invoice already processed' })
     }
     await req_.update({ status: 'APPROVED', admin_note: 'Matched by platform' })
+
+    await AuditLog.create({
+      admin_id: req.user.id,
+      action: 'APPROVE_PAYOUT_REQUEST',
+      target_id: req_.id,
+      details: {
+        campaign_id: req_.campaign_id,
+        amount: req_.requested_amount,
+      },
+    })
+
+    const campaign = req_.Campaign
+    const campaignOwner = campaign?.user
+    const hospitalName = campaign?.Hospital?.name || 'Hospital'
+    if (campaignOwner?.email) {
+      sendPayoutRequestApproved(
+        campaignOwner.email,
+        campaignOwner.name,
+        campaign?.campaign_title || 'Campaign',
+        campaign?.patient_name || 'Patient',
+        req_.requested_amount,
+        hospitalName
+      ).catch((error) => {
+        console.warn('Payout approval email failed:', error.message)
+      })
+    }
+
     res.json({ ...req_.toJSON(), _id: req_.id })
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -216,6 +259,35 @@ router.post('/:id/settle', protect, requireRole('super_admin'), async (req, res)
     })
 
     await disbursement.update({ status: 'PAID' })
+
+    await AuditLog.create({
+      admin_id: req.user.id,
+      action: 'SETTLE_PAYOUT_REQUEST',
+      target_id: disbursement.id,
+      details: {
+        campaign_id: campaign.id,
+        hospital_id: hospital?.id || null,
+        amount: disbursement.requested_amount,
+        transaction_reference: transactionRef,
+      },
+    })
+
+    const campaignOwner = await User.findByPk(campaign.user_id, {
+      attributes: ['id', 'name', 'email'],
+    })
+    if (campaignOwner?.email) {
+      sendPayoutRequestSettled(
+        campaignOwner.email,
+        campaignOwner.name,
+        campaign.campaign_title || 'Campaign',
+        campaign.patient_name || 'Patient',
+        disbursement.requested_amount,
+        hospital?.name || 'Hospital',
+        transactionRef
+      ).catch((error) => {
+        console.warn('Payout settlement email failed:', error.message)
+      })
+    }
 
     // Create receipts for donors
     const donations = await Donation.findAll({

@@ -13,6 +13,7 @@ import uploadRoutes from './routes/uploads.js'
 import hospitalsRoutes from './routes/hospitals.js'
 import hospitalAdminRoutes from './routes/hospitalAdmin.js'
 import superAdminRoutes from './routes/superAdmin.js'
+import analyticsRoutes from './routes/analytics.js'
 
 dotenv.config()
 connectDB()
@@ -50,6 +51,7 @@ app.use('/api/uploads', uploadRoutes)
 app.use('/api/hospitals', hospitalsRoutes)
 app.use('/api/hospital-admin', hospitalAdminRoutes)
 app.use('/api/super-admin', superAdminRoutes)
+app.use('/api/analytics', analyticsRoutes)
 
 app.get('/', (_, res) => {
   res.json({

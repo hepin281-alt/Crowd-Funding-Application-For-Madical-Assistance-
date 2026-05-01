@@ -24,6 +24,7 @@ import SuperAdminAdminDetail from './pages/SuperAdminAdminDetail'
 import SuperAdminCampaigns from './pages/SuperAdminCampaigns'
 import SuperAdminFinance from './pages/SuperAdminFinance'
 import SuperAdminSettings from './pages/SuperAdminSettings'
+import Analytics from './pages/Analytics'
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading, needsVerification, isDonor } = useAuth()
@@ -113,6 +114,14 @@ export default function App() {
         element={
           <ProtectedRoute allowedRole="super_admin">
             <SuperAdminFinance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="super-admin/analytics"
+        element={
+          <ProtectedRoute allowedRole="super_admin">
+            <Analytics />
           </ProtectedRoute>
         }
       />

@@ -1,18 +1,54 @@
 import { useState, useEffect } from 'react'
 import axiosInstance from '../api/axiosInstance'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import SuperAdminLayout from '../components/SuperAdminLayout'
 import { MetricCard, SectionHeader, DataCard } from '../components/SuperAdminComponents'
 
 export default function SuperAdminDashboard() {
     const [metrics, setMetrics] = useState(null)
     const [recentHospitalRequests, setRecentHospitalRequests] = useState([])
+    const [campaignPerformance, setCampaignPerformance] = useState([])
+    const [donationTrends, setDonationTrends] = useState([])
+    const [hospitalPerformance, setHospitalPerformance] = useState([])
+    const [payoutEfficiency, setPayoutEfficiency] = useState(null)
+    const [donorSegments, setDonorSegments] = useState([])
+    const [summary, setSummary] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
     useEffect(() => {
-        fetchMetrics()
+        fetchAllData()
     }, [])
+
+    const fetchAllData = async () => {
+        try {
+            setLoading(true)
+            const [metricsRes, requestsRes, perfRes, trendsRes, hospitalRes, payoutRes, segmentRes, summaryRes] = await Promise.all([
+                axiosInstance.get('/super-admin/metrics'),
+                axiosInstance.get('/super-admin/hospitals/pending/recent?limit=5'),
+                axiosInstance.get('/analytics/campaign-performance'),
+                axiosInstance.get('/analytics/donation-trends'),
+                axiosInstance.get('/analytics/hospital-performance'),
+                axiosInstance.get('/analytics/payout-efficiency'),
+                axiosInstance.get('/analytics/donor-segments'),
+                axiosInstance.get('/analytics/summary'),
+            ])
+
+            setMetrics(metricsRes.data)
+            setRecentHospitalRequests(Array.isArray(requestsRes.data) ? requestsRes.data : [])
+            setCampaignPerformance(perfRes.data)
+            setDonationTrends(trendsRes.data)
+            setHospitalPerformance(hospitalRes.data)
+            setPayoutEfficiency(payoutRes.data)
+            setDonorSegments(segmentRes.data)
+            setSummary(summaryRes.data)
+        } catch (err) {
+            console.error('Fetch error:', err)
+            setError(err.response?.data?.error || 'Failed to load data')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const fetchMetrics = async () => {
         try {
@@ -214,6 +250,118 @@ export default function SuperAdminDashboard() {
                         </div>
                     </DataCard>
                 </div>
+
+                {/* Analytics Section */}
+                {summary && (
+                    <>
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4 mt-8">Advanced Analytics</h2>
+
+                        {/* Analytics Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                            <MetricCard title="Total Donations" value={summary.totalDonations.toLocaleString()} color="emerald" subtext="All transactions" />
+                            <MetricCard title="Unique Donors" value={summary.uniqueDonors.toLocaleString()} color="blue" subtext="Community size" />
+                            <MetricCard title="Avg Donation" value={`₹${summary.avgDonation.toLocaleString()}`} color="purple" subtext="Average amount" />
+                            <MetricCard title="Successful" value={`${summary.successfulCampaigns}/${summary.totalCampaigns}`} color="emerald" subtext="Success count" />
+                            <MetricCard title="Success Rate" value={`${summary.totalCampaigns > 0 ? Math.round((summary.successfulCampaigns / summary.totalCampaigns) * 100) : 0}%`} color="blue" subtext="Overall rate" />
+                        </div>
+
+                        {/* Analytics Charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            {/* Campaign Performance */}
+                            <DataCard>
+                                <div className="p-6">
+                                    <h3 className="text-base font-semibold text-slate-900 mb-4">Top 10 Campaigns</h3>
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <BarChart data={campaignPerformance} margin={{ bottom: 60 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 11 }} />
+                                            <YAxis tick={{ fontSize: 12 }} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }} />
+                                            <Bar dataKey="raised" fill="#10b981" name="Raised" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </DataCard>
+
+                            {/* Hospital Performance */}
+                            <DataCard>
+                                <div className="p-6">
+                                    <h3 className="text-base font-semibold text-slate-900 mb-4">Top Hospitals</h3>
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <BarChart data={hospitalPerformance} layout="vertical" margin={{ left: 140 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                            <XAxis type="number" tick={{ fontSize: 12 }} />
+                                            <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }} />
+                                            <Bar dataKey="totalRaised" fill="#8b5cf6" name="Raised" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </DataCard>
+
+                            {/* Payout Status */}
+                            {payoutEfficiency && (
+                                <DataCard>
+                                    <div className="p-6">
+                                        <h3 className="text-base font-semibold text-slate-900 mb-4">Payout Status</h3>
+                                        <ResponsiveContainer width="100%" height={280}>
+                                            <PieChart>
+                                                <Pie
+                                                    data={[
+                                                        { name: 'Pending', value: payoutEfficiency.pending.count },
+                                                        { name: 'Approved', value: payoutEfficiency.approved.count },
+                                                        { name: 'Paid', value: payoutEfficiency.paid.count },
+                                                    ]}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    labelLine={false}
+                                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                                    outerRadius={80}
+                                                    dataKey="value"
+                                                >
+                                                    {['#f59e0b', '#3b82f6', '#10b981'].map((color, idx) => (
+                                                        <Cell key={`cell-${idx}`} fill={color} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </DataCard>
+                            )}
+
+                            {/* Donor Segments */}
+                            {donorSegments.length > 0 && (
+                                <DataCard>
+                                    <div className="p-6">
+                                        <h3 className="text-base font-semibold text-slate-900 mb-4">Donor Segments</h3>
+                                        <ResponsiveContainer width="100%" height={280}>
+                                            <BarChart data={donorSegments}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                                <XAxis dataKey="segment" tick={{ fontSize: 12 }} />
+                                                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }} />
+                                                <Legend />
+                                                <Bar yAxisId="left" dataKey="count" fill="#3b82f6" name="Donations" />
+                                                <Bar yAxisId="right" dataKey="total" fill="#10b981" name="Amount (₹)" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </DataCard>
+                            )}
+                        </div>
+
+                        {/* Payout Details */}
+                        {payoutEfficiency && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                <MetricCard title="Pending Payouts" value={payoutEfficiency.pending.count} color="amber" subtext={`₹${Math.round(payoutEfficiency.pending.total).toLocaleString()}`} />
+                                <MetricCard title="Approved Payouts" value={payoutEfficiency.approved.count} color="blue" subtext={`₹${Math.round(payoutEfficiency.approved.total).toLocaleString()}`} />
+                                <MetricCard title="Paid Payouts" value={payoutEfficiency.paid.count} color="emerald" subtext={`₹${Math.round(payoutEfficiency.paid.total).toLocaleString()}`} />
+                            </div>
+                        )}
+                    </>
+                )}
 
             </div>
         </SuperAdminLayout>

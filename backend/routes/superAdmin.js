@@ -40,6 +40,16 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
                 raw: true,
             })
 
+            const disbursedPayouts = await DisbursementRequest.findAll({
+                where: { status: 'PAID' },
+                attributes: [[Sequelize.fn('SUM', Sequelize.col('requested_amount')), 'total']],
+                transaction: t,
+                raw: true,
+            })
+
+            const totalDisbursed = Number(disbursedPayouts[0]?.total || 0)
+            const escrowBalance = Math.max(Number(totalRaised || 0) - totalDisbursed, 0)
+
             // Activity metrics
             const activeCampaigns = await Campaign.count({
                 where: { status: 'active' },
@@ -102,6 +112,8 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
                     totalRaised,
                     platformFees: Math.round(platformFees * 100) / 100,
                     pendingPayouts: pendingPayouts[0]?.total || 0,
+                    totalDisbursed,
+                    escrowBalance,
                 },
                 activity: {
                     activeCampaigns,
@@ -784,7 +796,11 @@ router.post('/campaigns/:id/abort', allowOpsRoles, async (req, res) => {
 router.get('/payouts/queue', allowSuperAdminOnly, async (req, res) => {
     try {
         const payoutQueue = await DisbursementRequest.findAll({
-            where: { status: 'PENDING' },
+            where: {
+                status: {
+                    [Sequelize.Op.in]: ['PENDING', 'APPROVED'],
+                },
+            },
             include: [
                 {
                     model: Campaign,
@@ -800,7 +816,17 @@ router.get('/payouts/queue', allowSuperAdminOnly, async (req, res) => {
             order: [['created_at', 'ASC']],
         })
 
-        res.json(payoutQueue)
+        const statusPriority = { PENDING: 0, APPROVED: 1 }
+        const sortedQueue = payoutQueue.sort((a, b) => {
+            const aPriority = statusPriority[a.status] ?? 99
+            const bPriority = statusPriority[b.status] ?? 99
+
+            if (aPriority !== bPriority) return aPriority - bPriority
+
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+
+        res.json(sortedQueue)
     } catch (error) {
         res.status(500).json({ error: error.message })
     }

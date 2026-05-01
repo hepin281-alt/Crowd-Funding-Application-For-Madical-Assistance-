@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import axiosInstance from '../api/axiosInstance'
 
 export default function InvoiceUpload() {
   const { campaignId } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const fileInputRef = useRef(null)
   const [amount, setAmount] = useState('')
   const [documentUrl, setDocumentUrl] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [donorLoading, setDonorLoading] = useState(true)
   const [donorError, setDonorError] = useState('')
   const [donorContributions, setDonorContributions] = useState([])
@@ -43,6 +46,26 @@ export default function InvoiceUpload() {
       REJECTED: 'Rejected',
     }
     return labels[status] || status
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await axiosInstance.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setDocumentUrl(response.data.url)
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'File upload failed')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -105,18 +128,40 @@ export default function InvoiceUpload() {
             required
           />
 
-          <label>Invoice Document URL</label>
+          <label>Invoice Document (PDF, JPG, PNG, WEBP)</label>
+          <div className="file-upload-area">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              style={{ display: 'none' }}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ marginBottom: '0.5rem', width: '100%' }}
+            >
+              {uploading ? 'Uploading...' : 'Choose File'}
+            </button>
+            {documentUrl && (
+              <p style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                ✓ File uploaded successfully
+              </p>
+            )}
+          </div>
+          <p className="form-hint">
+            Or paste invoice URL manually (optional):
+          </p>
           <input
             type="url"
             value={documentUrl}
             onChange={(e) => setDocumentUrl(e.target.value)}
-            placeholder="https://... or paste link to invoice"
-            required
+            placeholder="https://... (optional)"
           />
-          <p className="form-hint">
-            Upload your invoice to a file host (Google Drive, Dropbox, etc.) and
-            paste the shareable link here.
-          </p>
 
           {error && <p className="auth-error">{error}</p>}
 
@@ -126,6 +171,15 @@ export default function InvoiceUpload() {
             disabled={loading}
           >
             {loading ? 'Uploading...' : 'Submit Invoice'}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-full"
+            onClick={() => navigate(-1)}
+            style={{ marginTop: '0.5rem' }}
+          >
+            Back
           </button>
         </form>
 

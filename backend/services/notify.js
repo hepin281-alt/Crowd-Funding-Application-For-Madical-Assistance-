@@ -298,6 +298,51 @@ Thank you for making a difference!
     `
   }),
 
+  payoutRequestApproved: (recipientEmail, recipientName, campaignTitle, patientName, amount, hospitalName) => ({
+    to: recipientEmail,
+    subject: `[CareFund] Payout Request Approved - ${patientName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0284c7;">Payout Request Approved</h2>
+        <p>Hi ${recipientName || 'there'},</p>
+        <p>Your payout request has been approved by the CareFund admin team.</p>
+
+        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Campaign:</strong> ${campaignTitle}</p>
+          <p><strong>Patient:</strong> ${patientName}</p>
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Approved Amount:</strong> ₹${Number(amount || 0).toLocaleString()}</p>
+        </div>
+
+        <p>The request is now queued for payout settlement.</p>
+      </div>
+    `,
+    text: `Payout Request Approved\n\nHi ${recipientName || 'there'},\n\nYour payout request has been approved.\nCampaign: ${campaignTitle}\nPatient: ${patientName}\nHospital: ${hospitalName}\nApproved Amount: ₹${Number(amount || 0).toLocaleString()}\n\nThe request is now queued for payout settlement.`,
+  }),
+
+  payoutRequestSettled: (recipientEmail, recipientName, campaignTitle, patientName, amount, hospitalName, payoutRef) => ({
+    to: recipientEmail,
+    subject: `[CareFund] Payout Settled - ${patientName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #059669;">Payout Settled Successfully</h2>
+        <p>Hi ${recipientName || 'there'},</p>
+        <p>Your approved payout request has been settled successfully.</p>
+
+        <div style="background: #ecfdf5; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+          <p><strong>Campaign:</strong> ${campaignTitle}</p>
+          <p><strong>Patient:</strong> ${patientName}</p>
+          <p><strong>Hospital:</strong> ${hospitalName}</p>
+          <p><strong>Settled Amount:</strong> ₹${Number(amount || 0).toLocaleString()}</p>
+          <p><strong>Payout Reference:</strong> ${payoutRef}</p>
+        </div>
+
+        <p>Donor receipts and utilization records are being processed.</p>
+      </div>
+    `,
+    text: `Payout Settled Successfully\n\nHi ${recipientName || 'there'},\n\nYour approved payout request has been settled.\nCampaign: ${campaignTitle}\nPatient: ${patientName}\nHospital: ${hospitalName}\nSettled Amount: ₹${Number(amount || 0).toLocaleString()}\nPayout Reference: ${payoutRef}\n\nDonor receipts and utilization records are being processed.`,
+  }),
+
   donationUtilized: (donorEmail, donorName, patientName, amount, hospitalName, receiptUrl) => ({
     to: donorEmail,
     subject: `[CareFund] Your Donation Has Been Utilized - ₹${amount}`,
@@ -605,6 +650,31 @@ export async function sendHospitalApplicationApproved(adminEmail, hospitalName, 
 
 export async function sendHospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason) {
   const emailData = templates.hospitalApplicationRejected(adminEmail, hospitalName, applicationId, reason)
+  return sendEmail(emailData)
+}
+
+export async function sendPayoutRequestApproved(recipientEmail, recipientName, campaignTitle, patientName, amount, hospitalName) {
+  const emailData = templates.payoutRequestApproved(
+    recipientEmail,
+    recipientName,
+    campaignTitle,
+    patientName,
+    amount,
+    hospitalName
+  )
+  return sendEmail(emailData)
+}
+
+export async function sendPayoutRequestSettled(recipientEmail, recipientName, campaignTitle, patientName, amount, hospitalName, payoutRef) {
+  const emailData = templates.payoutRequestSettled(
+    recipientEmail,
+    recipientName,
+    campaignTitle,
+    patientName,
+    amount,
+    hospitalName,
+    payoutRef
+  )
   return sendEmail(emailData)
 }
 

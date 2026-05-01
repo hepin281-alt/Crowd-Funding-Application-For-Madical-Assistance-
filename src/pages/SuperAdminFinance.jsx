@@ -40,8 +40,13 @@ export default function SuperAdminFinance() {
     }
 
     const getTotalPayouts = () => {
-        return payoutQueue.reduce((sum, payout) => sum + Number(payout.requested_amount || 0), 0)
+        return payoutQueue
+            .filter((payout) => payout.status === 'PENDING')
+            .reduce((sum, payout) => sum + Number(payout.requested_amount || 0), 0)
     }
+
+    const pendingCount = payoutQueue.filter((payout) => payout.status === 'PENDING').length
+    const approvedCount = payoutQueue.filter((payout) => payout.status === 'APPROVED').length
 
     const getTotalTransactions = () => {
         return transactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0)
@@ -68,31 +73,72 @@ export default function SuperAdminFinance() {
     const approvePayout = async () => {
         if (!selectedPayout) return
 
+        const payoutId = selectedPayout.id
+        const previousQueue = [...payoutQueue]
+        const previousSelected = selectedPayout
+
         try {
             setActionLoading(true)
             setError(null)
+
+            // Optimistic update: show status change instantly.
+            setPayoutQueue((prev) =>
+                prev.map((payout) =>
+                    payout.id === payoutId
+                        ? { ...payout, status: 'APPROVED' }
+                        : payout
+                )
+            )
+            setSelectedPayout((prev) =>
+                prev && prev.id === payoutId
+                    ? { ...prev, status: 'APPROVED' }
+                    : prev
+            )
+
             await axiosInstance.post(`/invoices/${selectedPayout.id}/match`)
-            await fetchData()
-            closePayoutDetails()
         } catch (err) {
+            setPayoutQueue(previousQueue)
+            setSelectedPayout(previousSelected)
             setError(err.response?.data?.message || err.response?.data?.error || 'Failed to approve payout')
         } finally {
             setActionLoading(false)
         }
     }
 
-    const approveAndSettlePayout = async () => {
+    const settlePayout = async () => {
         if (!selectedPayout) return
+
+        const payoutId = selectedPayout.id
+        const payoutAmount = Number(selectedPayout.requested_amount || 0).toLocaleString()
+        const hospitalName = selectedPayout.Campaign?.Hospital?.name || 'the hospital'
+
+        const confirmed = window.confirm(
+            `Confirm payout settlement of ₹${payoutAmount} to ${hospitalName}?\n\nThis action marks the request as PAID and triggers donor receipts.`
+        )
+
+        if (!confirmed) return
+
+        const previousQueue = [...payoutQueue]
+        const previousSelected = selectedPayout
 
         try {
             setActionLoading(true)
             setError(null)
-            await axiosInstance.post(`/invoices/${selectedPayout.id}/match`)
+
+            // Optimistic update: remove from actionable queue immediately.
+            setPayoutQueue((prev) => prev.filter((payout) => payout.id !== payoutId))
+            setSelectedPayout((prev) =>
+                prev && prev.id === payoutId
+                    ? { ...prev, status: 'PAID' }
+                    : prev
+            )
+
             await axiosInstance.post(`/invoices/${selectedPayout.id}/settle`)
-            await fetchData()
             closePayoutDetails()
             setActiveTab('transactions')
         } catch (err) {
+            setPayoutQueue(previousQueue)
+            setSelectedPayout(previousSelected)
             setError(err.response?.data?.message || err.response?.data?.error || 'Failed to settle payout')
         } finally {
             setActionLoading(false)
@@ -149,7 +195,7 @@ export default function SuperAdminFinance() {
                             <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-8 rounded-lg border border-amber-100 super-admin-payout-summary">
                                 <p className="text-amber-700 text-sm font-semibold uppercase tracking-wider">Total Pending Payouts</p>
                                 <p className="text-5xl font-bold text-amber-900 mt-3">₹{getTotalPayouts().toLocaleString()}</p>
-                                <p className="text-amber-700 text-sm mt-3">{payoutQueue.length} disbursements waiting</p>
+                                <p className="text-amber-700 text-sm mt-3">{pendingCount} pending, {approvedCount} approved for settlement</p>
                             </div>
                         </DataCard>
 
@@ -185,7 +231,7 @@ export default function SuperAdminFinance() {
                                                         <td className="px-6 py-4 text-sm text-slate-900">{payout.Campaign?.Hospital?.name || '-'}</td>
                                                         <td className="px-6 py-4 font-bold text-slate-900">₹{Number(payout.requested_amount || 0).toLocaleString()}</td>
                                                         <td className="px-6 py-4">
-                                                            <StatusBadge status="amber" label={payout.status} />
+                                                            <StatusBadge status={getStatusColor(payout.status)} label={payout.status} />
                                                         </td>
                                                         <td className="px-6 py-4 text-sm">
                                                             <button
@@ -342,22 +388,28 @@ export default function SuperAdminFinance() {
                                 </div>
 
                                 <div className="mt-6 flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={approvePayout}
-                                        disabled={actionLoading}
-                                        className="px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60"
-                                    >
-                                        {actionLoading ? 'Processing...' : 'Approve'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={approveAndSettlePayout}
-                                        disabled={actionLoading}
-                                        className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
-                                    >
-                                        {actionLoading ? 'Processing...' : 'Approve & Pay Now'}
-                                    </button>
+                                    {selectedPayout.status === 'PENDING' && (
+                                        <button
+                                            type="button"
+                                            onClick={approvePayout}
+                                            disabled={actionLoading}
+                                            className="px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60"
+                                        >
+                                            {actionLoading ? 'Processing...' : 'Approve'}
+                                        </button>
+                                    )}
+
+                                    {selectedPayout.status === 'APPROVED' && (
+                                        <button
+                                            type="button"
+                                            onClick={settlePayout}
+                                            disabled={actionLoading}
+                                            className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        >
+                                            {actionLoading ? 'Processing...' : 'Pay Now'}
+                                        </button>
+                                    )}
+
                                     <button
                                         type="button"
                                         onClick={closePayoutDetails}
