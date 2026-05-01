@@ -22,16 +22,23 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const isDev = process.env.NODE_ENV !== 'production'
 
-const allowedOrigins = new Set(['http://localhost:5173', 'http://localhost:5174'])
+// Dynamic allowed origins
+const devOrigins = ['http://localhost:5173', 'http://localhost:5174']
+const prodOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : []
+const allowedOrigins = new Set([...devOrigins, ...prodOrigins])
+
 app.use(cors({
   origin: (origin, callback) => {
     if (isDev) {
       return callback(null, true)
     }
-    // Allow non-browser tools and all localhost/dev ports.
+    // Allow non-browser tools, localhost, and configured origins
     if (!origin || origin.startsWith('http://localhost:') || allowedOrigins.has(origin)) {
       return callback(null, true)
     }
+    console.warn(`CORS rejected origin: ${origin}`)
     return callback(new Error('Not allowed by CORS'))
   },
   credentials: true,
