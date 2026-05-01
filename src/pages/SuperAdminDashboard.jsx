@@ -102,7 +102,7 @@ export default function SuperAdminDashboard() {
                 {/* Financial Metrics Section */}
                 <div className="mt-8 mb-8">
                     <h2 className="text-lg font-semibold text-slate-900 mb-4">Financial Metrics</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <MetricCard
                             title="Total Amount Raised"
                             value={`₹${(financial.totalRaised || 0).toLocaleString()}`}
@@ -110,10 +110,46 @@ export default function SuperAdminDashboard() {
                             subtext="All-time total"
                         />
                         <MetricCard
+                            title="Escrow Balance"
+                            value={`₹${(financial.escrowBalance || 0).toLocaleString()}`}
+                            color="blue"
+                            subtext="Funds in escrow"
+                        />
+                        <MetricCard
+                            title="Available Escrow"
+                            value={`₹${(financial.availableEscrow || 0).toLocaleString()}`}
+                            color="cyan"
+                            subtext="Ready to disburse"
+                        />
+                        <MetricCard
+                            title="Total Disbursed"
+                            value={`₹${(financial.totalDisbursed || 0).toLocaleString()}`}
+                            color="purple"
+                            subtext="Already paid out"
+                        />
+                        <MetricCard
                             title="Pending Payouts"
                             value={`₹${(financial.pendingPayouts || 0).toLocaleString()}`}
                             color="amber"
-                            subtext="Awaiting disbursement"
+                            subtext="Awaiting approval"
+                        />
+                        <MetricCard
+                            title="Approved Payouts"
+                            value={`₹${(financial.approvedPayouts || 0).toLocaleString()}`}
+                            color="indigo"
+                            subtext="Queued for settlement"
+                        />
+                        <MetricCard
+                            title="Escrow Utilization"
+                            value={`${financial.escrowUtilization || 0}%`}
+                            color="slate"
+                            subtext="Approved vs total"
+                        />
+                        <MetricCard
+                            title="Platform Fees"
+                            value={`₹${(financial.platformFees || 0).toLocaleString()}`}
+                            color="gray"
+                            subtext="2% commission"
                         />
                     </div>
                 </div>

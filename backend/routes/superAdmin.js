@@ -47,8 +47,17 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
                 raw: true,
             })
 
+            const approvedPayouts = await DisbursementRequest.findAll({
+                where: { status: 'APPROVED' },
+                attributes: [[Sequelize.fn('SUM', Sequelize.col('requested_amount')), 'total']],
+                transaction: t,
+                raw: true,
+            })
+
             const totalDisbursed = Number(disbursedPayouts[0]?.total || 0)
+            const totalApproved = Number(approvedPayouts[0]?.total || 0)
             const escrowBalance = Math.max(Number(totalRaised || 0) - totalDisbursed, 0)
+            const availableEscrow = Math.max(escrowBalance - totalApproved, 0)
 
             // Activity metrics
             const activeCampaigns = await Campaign.count({
@@ -112,8 +121,11 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
                     totalRaised,
                     platformFees: Math.round(platformFees * 100) / 100,
                     pendingPayouts: pendingPayouts[0]?.total || 0,
+                    approvedPayouts: totalApproved,
                     totalDisbursed,
                     escrowBalance,
+                    availableEscrow,
+                    escrowUtilization: escrowBalance > 0 ? Math.round((totalApproved / escrowBalance) * 100) : 0,
                 },
                 activity: {
                     activeCampaigns,

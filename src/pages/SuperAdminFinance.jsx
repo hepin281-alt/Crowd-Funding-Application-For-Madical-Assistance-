@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import axiosInstance from '../api/axiosInstance'
 import SuperAdminLayout from '../components/SuperAdminLayout'
-import { SectionHeader, DataCard, StatusBadge } from '../components/SuperAdminComponents'
+import { SectionHeader, DataCard, StatusBadge, MetricCard } from '../components/SuperAdminComponents'
 
 export default function SuperAdminFinance() {
     const [payoutQueue, setPayoutQueue] = useState([])
@@ -13,15 +13,20 @@ export default function SuperAdminFinance() {
     const [selectedPayout, setSelectedPayout] = useState(null)
     const [showPayoutModal, setShowPayoutModal] = useState(false)
     const [actionLoading, setActionLoading] = useState(false)
+    const [metrics, setMetrics] = useState(null)
 
     useEffect(() => {
-        fetchData()
+        fetchAllData()
     }, [activeTab, pagination.page])
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
         try {
             setLoading(true)
             setError(null)
+
+            // Fetch metrics
+            const metricsRes = await axiosInstance.get('/super-admin/metrics')
+            setMetrics(metricsRes.data)
 
             if (activeTab === 'payouts') {
                 const response = await axiosInstance.get('/super-admin/payouts/queue')
@@ -37,6 +42,10 @@ export default function SuperAdminFinance() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const fetchData = async () => {
+        fetchAllData()
     }
 
     const getTotalPayouts = () => {
@@ -165,6 +174,39 @@ export default function SuperAdminFinance() {
                     title="Finance & Payouts"
                     description="Monitor transactions and manage disbursements"
                 />
+
+                {/* Escrow Summary Cards */}
+                {metrics?.financial && (
+                    <div className="mt-8 mb-8">
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4">Escrow & Payout Status</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <MetricCard
+                                title="Escrow Balance"
+                                value={`₹${(metrics.financial.escrowBalance || 0).toLocaleString()}`}
+                                color="blue"
+                                subtext="Total in escrow"
+                            />
+                            <MetricCard
+                                title="Available Escrow"
+                                value={`₹${(metrics.financial.availableEscrow || 0).toLocaleString()}`}
+                                color="cyan"
+                                subtext="Ready to disburse"
+                            />
+                            <MetricCard
+                                title="Pending Approval"
+                                value={`₹${(metrics.financial.pendingPayouts || 0).toLocaleString()}`}
+                                color="amber"
+                                subtext="Awaiting approval"
+                            />
+                            <MetricCard
+                                title="Approved, Queued"
+                                value={`₹${(metrics.financial.approvedPayouts || 0).toLocaleString()}`}
+                                color="indigo"
+                                subtext="Ready to settle"
+                            />
+                        </div>
+                    </div>
+                )}
 
                 <div className="super-admin-switch-tabs-wrap mb-8">
                     <div className="super-admin-switch-tabs">
