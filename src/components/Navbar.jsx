@@ -13,7 +13,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout()
-    navigate('/')
+    navigate('/', { replace: true })
   }
 
   const closeMenu = () => setMenuOpen(false)

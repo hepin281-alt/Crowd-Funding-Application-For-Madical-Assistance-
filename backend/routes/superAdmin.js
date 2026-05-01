@@ -31,7 +31,6 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
         const metrics = await db.transaction(async (t) => {
             // Financial metrics
             const totalRaised = await Donation.sum('amount', { transaction: t }) || 0
-            const platformFees = totalRaised * 0.02 // 2% platform fee
 
             const pendingPayouts = await DisbursementRequest.findAll({
                 where: { status: 'PENDING' },
@@ -119,7 +118,6 @@ router.get('/metrics', allowOpsRoles, async (req, res) => {
             return {
                 financial: {
                     totalRaised,
-                    platformFees: Math.round(platformFees * 100) / 100,
                     pendingPayouts: pendingPayouts[0]?.total || 0,
                     approvedPayouts: totalApproved,
                     totalDisbursed,

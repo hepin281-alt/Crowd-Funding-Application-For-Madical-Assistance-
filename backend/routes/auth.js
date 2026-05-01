@@ -7,7 +7,7 @@ import crypto from 'crypto'
 import { User, Hospital } from '../models/index.js'
 import db from '../config/database.js'
 import { protect } from '../middleware/auth.js'
-import { sendVerificationCodeToUser } from '../services/notify.js'
+import { sendVerificationCodeToUser, sendPasswordResetLink } from '../services/notify.js'
 
 const router = express.Router()
 
@@ -517,7 +517,14 @@ router.post('/forgot-password', async (req, res) => {
       reset_token_expires_at: resetTokenExpiresAt,
     })
 
-    console.log(`[CareFund] Password reset token for ${user.email}: ${resetToken}`)
+    try {
+      await sendPasswordResetLink(user.email, user.name, resetToken)
+    } catch (emailError) {
+      console.error(`[CareFund] Failed to send password reset email to ${user.email}: ${emailError.message}`)
+      return res.status(500).json({ message: 'Unable to send reset email right now. Please try again.' })
+    }
+
+    console.log(`[CareFund] Password reset link sent to ${user.email}`)
 
     const payload = { message: 'Password reset link sent to your email' }
     if (process.env.NODE_ENV !== 'production') {

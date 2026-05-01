@@ -145,12 +145,7 @@ export default function SuperAdminDashboard() {
                             color="slate"
                             subtext="Approved vs total"
                         />
-                        <MetricCard
-                            title="Platform Fees"
-                            value={`₹${(financial.platformFees || 0).toLocaleString()}`}
-                            color="gray"
-                            subtext="2% commission"
-                        />
+
                     </div>
                 </div>
 

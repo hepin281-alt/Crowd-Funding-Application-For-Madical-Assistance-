@@ -118,6 +118,33 @@ function buildVerificationSms(recipientName, verificationCode, purpose = 'verifi
   return `${prefix}your CareFund ${purpose} code is ${verificationCode}. Use the same code from email or SMS. It expires in 10 minutes.`
 }
 
+function buildPasswordResetEmail(email, recipientName, resetToken) {
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`
+  const greeting = recipientName ? `Dear ${recipientName},` : 'Hello,'
+
+  return {
+    to: email,
+    subject: '[CareFund] Password reset request',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0d9488;">Reset your CareFund password</h2>
+        <p>${greeting}</p>
+        <p>We received a request to reset your password. Use the button below to continue.</p>
+        <p style="margin: 1.25rem 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            Reset Password
+          </a>
+        </p>
+        <p style="font-size: 0.95rem;">This link expires in 1 hour.</p>
+        <p style="font-size: 0.95rem;">If the button does not work, copy this URL into your browser:</p>
+        <p style="word-break: break-all; color: #0f766e;">${resetUrl}</p>
+        <p style="color: #666; font-size: 0.9rem;">If you did not request a password reset, you can ignore this email.</p>
+      </div>
+    `,
+    text: `${greeting}\n\nWe received a request to reset your password.\n\nReset link: ${resetUrl}\n\nThis link expires in 1 hour.\nIf you did not request a password reset, you can ignore this email.`,
+  }
+}
+
 // Email templates
 const templates = {
   hospitalHandshake: (hospitalEmail, campaignId, patientName, verifyUrl) => ({
@@ -678,9 +705,19 @@ export async function sendPayoutRequestSettled(recipientEmail, recipientName, ca
   return sendEmail(emailData)
 }
 
+export async function sendPasswordResetLink(recipientEmail, recipientName, resetToken) {
+  const emailData = buildPasswordResetEmail(recipientEmail, recipientName, resetToken)
+  return sendEmail(emailData)
+}
+
 export async function sendVerificationCodeToUser({ email, phone, recipientName, verificationCode, purpose = 'verification' }) {
-  const emailPromise = email ? sendEmail(buildVerificationEmail(email, recipientName, verificationCode, purpose)) : Promise.resolve(false)
-  const smsPromise = phone ? sendSms(phone, buildVerificationSms(recipientName, verificationCode, purpose)) : Promise.resolve(false)
+  const emailPromise = email
+    ? Promise.resolve().then(() => sendEmail(buildVerificationEmail(email, recipientName, verificationCode, purpose)))
+    : Promise.resolve(false)
+
+  const smsPromise = phone
+    ? Promise.resolve().then(() => sendSms(phone, buildVerificationSms(recipientName, verificationCode, purpose)))
+    : Promise.resolve(false)
 
   const [emailResult, smsResult] = await Promise.allSettled([emailPromise, smsPromise])
 

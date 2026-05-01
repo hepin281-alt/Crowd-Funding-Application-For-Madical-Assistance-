@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
@@ -10,27 +10,30 @@ export default function Landing() {
     const [openFaq, setOpenFaq] = useState(0)
     const [trustView, setTrustView] = useState('beneficiary')
 
-    if (user) {
-        if (user.role === 'hospital_admin') {
-            navigate('/admin-dashboard', { replace: true })
-        } else if (user.role === 'super_admin') {
-            navigate('/super-admin', { replace: true })
-        } else {
-            navigate('/dashboard', { replace: true })
+    useEffect(() => {
+        if (user) {
+            if (user.role === 'hospital_admin') {
+                navigate('/admin-dashboard', { replace: true })
+            } else if (user.role === 'super_admin') {
+                navigate('/super-admin', { replace: true })
+            } else {
+                navigate('/dashboard', { replace: true })
+            }
         }
+    }, [user, navigate])
+
+    // Don't render landing page content if user is logged in
+    if (user) {
         return null
     }
 
     const calculator = useMemo(() => {
-        const processingRate = 0.02
-        const effectiveDonation = avgDonation * (1 - processingRate)
-        const donorsNeeded = Math.max(1, Math.ceil(goalAmount / effectiveDonation))
+        const donorsNeeded = Math.max(1, Math.ceil(goalAmount / avgDonation))
         const dailyDonorTarget = Math.max(8, Math.ceil(donorsNeeded / 20))
 
         return {
             donorsNeeded,
             dailyDonorTarget,
-            processingEstimate: Math.round(goalAmount * processingRate),
         }
     }, [goalAmount, avgDonation])
 
@@ -225,10 +228,6 @@ export default function Landing() {
                             <div>
                                 <span>Daily donor target (20 days)</span>
                                 <strong>{calculator.dailyDonorTarget}/day</strong>
-                            </div>
-                            <div>
-                                <span>Gateway + processing estimate</span>
-                                <strong>Rs. {calculator.processingEstimate.toLocaleString('en-IN')}</strong>
                             </div>
                         </div>
                     </div>

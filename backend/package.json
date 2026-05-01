@@ -8,6 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js",
+    "add-campaigns": "node scripts/add-campaigns.js",
+    "cleanup": "node scripts/cleanup.js",
     "test": "node --test"
   },
   "dependencies": {
